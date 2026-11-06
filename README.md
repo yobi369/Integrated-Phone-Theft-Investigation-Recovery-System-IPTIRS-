@@ -62,7 +62,6 @@ The existing React + TypeScript + Vite interface contains dashboard, asset regis
 - TypeScript
 - Vite
 - Recharts
-- Google GenAI SDK (currently present in the prototype; not approved for sensitive case data)
 
 A production backend, identity provider, transactional database, evidence storage, and institutional integrations are not yet established.
 
@@ -71,6 +70,7 @@ A production backend, identity provider, transactional database, evidence storag
 ```bash
 npm install
 npm run dev
+npm run typecheck
 npm run build
 ```
 
