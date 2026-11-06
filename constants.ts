@@ -3,10 +3,10 @@ import { Case, CaseStatus, Kpi, AiInsight } from './types';
 // Synthetic dashboard values for layout development only.
 // Never present these as operational, institutional, or measured statistics.
 export const MOCK_KPIS: Kpi[] = [
-  { title: 'Demo recovery rate', value: '—', target: 0, change: 'Not measured', changeType: 'increase', description: 'No verified dataset connected' },
-  { title: 'Location requests', value: '—', target: 0, change: 'Not connected', changeType: 'increase', description: 'No telecom integration' },
-  { title: 'Response time', value: '—', target: 0, change: 'Not measured', changeType: 'increase', description: 'No operational data' },
-  { title: 'Assets recovered', value: '—', target: 0, change: 'Not measured', changeType: 'increase', description: 'No verified outcomes' },
+  { title: 'Recovery outcomes', value: '—', change: 'Not measured', description: 'No verified dataset connected' },
+  { title: 'Authorized requests', value: '—', change: 'Not connected', description: 'No institutional workflow enabled' },
+  { title: 'Case processing time', value: '—', change: 'Not measured', description: 'No operational data' },
+  { title: 'Verified devices', value: '—', change: 'Not measured', description: 'No verified ownership records' },
 ];
 
 // Synthetic records used only to preview the interface.
