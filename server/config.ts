@@ -39,12 +39,20 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppCon
     throw new Error('At least one CORS origin must be configured.');
   }
 
-  for (const origin of corsOrigins) {
+  const normalizedOrigins = corsOrigins.map((origin) => {
     const parsedOrigin = new URL(origin);
-    if (parsedOrigin.protocol !== 'https:' && parsedOrigin.hostname !== 'localhost') {
-      throw new Error('CORS origins must use HTTPS except for localhost development.');
+    if (
+      (parsedOrigin.protocol !== 'https:' && parsedOrigin.hostname !== 'localhost') ||
+      parsedOrigin.username.length > 0 ||
+      parsedOrigin.password.length > 0 ||
+      parsedOrigin.pathname !== '/' ||
+      parsedOrigin.search.length > 0 ||
+      parsedOrigin.hash.length > 0
+    ) {
+      throw new Error('CORS entries must be HTTPS origins without paths, credentials, queries, or fragments.');
     }
-  }
+    return parsedOrigin.origin;
+  });
 
   return {
     nodeEnv: parsed.NODE_ENV,
@@ -54,7 +62,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppCon
     oidcIssuer: parsed.OIDC_ISSUER,
     oidcAudience: parsed.OIDC_AUDIENCE,
     oidcJwksUrl: parsed.OIDC_JWKS_URL,
-    corsOrigins,
+    corsOrigins: normalizedOrigins,
     rateLimitMax: parsed.RATE_LIMIT_MAX
   };
 }
