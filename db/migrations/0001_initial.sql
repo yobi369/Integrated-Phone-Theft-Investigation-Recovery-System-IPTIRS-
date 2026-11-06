@@ -217,12 +217,10 @@ CREATE POLICY organizations_tenant_policy ON organizations
         AND m.status = 'active')
   );
 
-CREATE POLICY users_membership_policy ON users
+CREATE POLICY users_identity_lookup_policy ON users
   FOR SELECT USING (
-    id = nullif(current_setting('app.current_user_id', true), '')::uuid
-    AND EXISTS (SELECT 1 FROM memberships m
-      WHERE m.organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
-        AND m.user_id = users.id AND m.status = 'active')
+    auth_subject = nullif(current_setting('app.current_auth_subject', true), '')
+    AND status = 'active'
   );
 
 CREATE POLICY memberships_self_policy ON memberships
