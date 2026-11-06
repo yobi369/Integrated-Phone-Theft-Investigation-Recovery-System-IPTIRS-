@@ -34,9 +34,8 @@ async function main(): Promise<void> {
   await app.listen({ host: '0.0.0.0', port: config.port });
 }
 
-main().catch((error: unknown) => {
-  // Do not print environment variables or configuration values.
-  process.stderr.write('IPTIRS API failed to start: ' +
-    (error instanceof Error ? error.message : 'unknown error') + '\n');
+main().catch(() => {
+  // Configuration parser errors may contain environment input. Never echo them.
+  process.stderr.write('IPTIRS API failed to start. Check server configuration and service connectivity.\n');
   process.exitCode = 1;
 });
