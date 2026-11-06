@@ -1,4 +1,4 @@
-import { Case, CaseStatus, Kpi, AiInsight } from './types';
+import { Case, CaseStatus, Kpi } from './types';
 
 // Synthetic dashboard values for layout development only.
 // Never present these as operational, institutional, or measured statistics.
@@ -16,6 +16,3 @@ export const MOCK_CASES: Case[] = [
   { id: 'DEMO-003', device: 'Sample smartphone', type: 'Phone', owner: 'Sample user B', location: 'Sample location', reportedAt: 'Demo record', status: CaseStatus.Recovered, priority: 'Low' },
 ];
 
-// Real AI-generated intelligence is not enabled. Never populate this array with
-// fabricated suspects, tracking signals, locations, or investigative alerts.
-export const MOCK_AI_INSIGHTS: AiInsight[] = [];
