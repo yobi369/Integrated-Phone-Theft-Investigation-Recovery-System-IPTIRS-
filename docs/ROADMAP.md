@@ -16,17 +16,22 @@ Deliver in reviewable phases. Do not claim production readiness, legal complianc
 
 ## Phase 1 — Secure case-management MVP
 
-**Progress:** initial PostgreSQL data model, role-scoped RLS policies, composite tenant foreign keys, append-only case/evidence/audit metadata, and CI tenant-isolation checks are being implemented. This is a database foundation only; it is not yet an authenticated API or deployed service.
+**Progress:** the PostgreSQL data model, role-scoped RLS policies, generic OIDC JWT verifier, authenticated case API, case-event/audit writes, and PostgreSQL-backed API integration tests are implemented on the product branch. CodeQL and high/critical dependency audit gates are active. This remains an undeployed development foundation: no real identity provider, production database, evidence store, or institution is configured.
 
 - [x] Define initial organizations, users, memberships, cases, device, evidence, authorization, operator-request, and audit tables.
 - [x] Add database-enforced tenant boundaries and role-scoped case visibility.
 - [x] Restrict audit and evidence records against application-role updates/deletes.
-- [ ] Select and integrate an institutional identity provider and server-side API.
+- [x] Implement a generic OIDC/JWKS JWT verifier and authenticated server-side case API.
+- [ ] Configure a real institutional identity provider, SSO, MFA, and account lifecycle.
+- [ ] Connect the React application to the deployed API and authenticated sign-in flow.
+- [ ] Deploy and operate the PostgreSQL service using production secrets and backups.
 - [ ] Implement citizen intake, reference numbers, duplicate review, and case workflows.
 - [ ] Implement encrypted evidence object storage, malware scanning, provenance, and access history.
 - [ ] Implement an independent approval workflow for sensitive operator requests.
-- [ ] Implement append-only audit hash generation and verification in the trusted backend.
-- [ ] Add end-to-end authorization, tenant-isolation, and evidence-integrity tests.
+- [x] Generate a per-event SHA-256 audit digest for case creation.
+- [ ] Add chained/external audit checkpoints and independent verification.
+- [x] Add PostgreSQL integration tests for tenant isolation, reporter scope, and authenticated case creation.
+- [ ] Add end-to-end evidence-integrity tests after secure object storage is implemented.
 
 **Exit gate:** end-to-end synthetic-data tests pass, including cross-tenant denial and evidence integrity checks.
 
