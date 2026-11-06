@@ -233,70 +233,153 @@ CREATE POLICY memberships_self_policy ON memberships
     AND user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
   );
 
-CREATE POLICY cases_tenant_policy ON cases
-  USING (
+CREATE POLICY cases_tenant_select ON cases
+  FOR SELECT USING (
     organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
-    AND EXISTS (
-      SELECT 1 FROM memberships m
+    AND EXISTS (SELECT 1 FROM memberships m
       WHERE m.organization_id = cases.organization_id
         AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
-        AND m.status = 'active'
-    )
-  )
-  WITH CHECK (
+        AND m.status = 'active')
+  );
+
+CREATE POLICY cases_tenant_insert ON cases
+  FOR INSERT WITH CHECK (
     organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
     AND created_by_user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
-    AND EXISTS (
-      SELECT 1 FROM memberships m
+    AND EXISTS (SELECT 1 FROM memberships m
       WHERE m.organization_id = cases.organization_id
         AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
-        AND m.status = 'active'
-    )
+        AND m.status = 'active')
+  );
+
+CREATE POLICY cases_tenant_update ON cases
+  FOR UPDATE USING (
+    organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = cases.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active')
+  ) WITH CHECK (
+    organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = cases.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active')
   );
 
 CREATE POLICY device_records_tenant_policy ON device_records
-  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid)
-  WITH CHECK (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid);
+  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = device_records.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active'))
+  WITH CHECK (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = device_records.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active'));
 
 CREATE POLICY case_events_tenant_policy ON case_events
-  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid)
+  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = case_events.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active'))
   WITH CHECK (
     organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = case_events.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active')
     AND actor_user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
   );
 
 CREATE POLICY evidence_items_tenant_policy ON evidence_items
-  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid)
+  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = evidence_items.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active'))
   WITH CHECK (
     organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = evidence_items.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active')
     AND uploaded_by_user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
   );
 
 CREATE POLICY evidence_access_events_tenant_policy ON evidence_access_events
-  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid)
+  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = evidence_access_events.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active'))
   WITH CHECK (
     organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = evidence_access_events.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active')
     AND actor_user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
   );
 
 CREATE POLICY authorization_records_tenant_policy ON authorization_records
-  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid)
+  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = authorization_records.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active'))
   WITH CHECK (
     organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = authorization_records.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active')
     AND requested_by_user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
   );
 
-CREATE POLICY operator_requests_tenant_policy ON operator_requests
-  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid)
-  WITH CHECK (
+CREATE POLICY operator_requests_tenant_select ON operator_requests
+  FOR SELECT USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = operator_requests.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active'));
+
+CREATE POLICY operator_requests_tenant_insert ON operator_requests
+  FOR INSERT WITH CHECK (
     organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = operator_requests.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active')
     AND created_by_user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
   );
 
+CREATE POLICY operator_requests_tenant_update ON operator_requests
+  FOR UPDATE USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = operator_requests.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active'))
+  WITH CHECK (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = operator_requests.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active'));
+
 CREATE POLICY audit_events_tenant_policy ON audit_events
-  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid)
+  USING (organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = audit_events.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active'))
   WITH CHECK (
     organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND EXISTS (SELECT 1 FROM memberships m
+      WHERE m.organization_id = audit_events.organization_id
+        AND m.user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
+        AND m.status = 'active')
     AND actor_user_id = nullif(current_setting('app.current_user_id', true), '')::uuid
   );
 
@@ -306,7 +389,7 @@ GRANT USAGE ON SCHEMA public TO iptirs_app;
 GRANT SELECT ON organizations, users, memberships, cases, device_records,
   case_events, evidence_items, evidence_access_events, authorization_records,
   operator_requests, audit_events TO iptirs_app;
-GRANT INSERT, UPDATE ON cases, device_records, authorization_records,
-  operator_requests TO iptirs_app;
+GRANT INSERT, UPDATE ON cases, device_records, operator_requests TO iptirs_app;
+GRANT INSERT ON authorization_records TO iptirs_app;
 GRANT INSERT ON case_events, evidence_items, evidence_access_events,
   audit_events TO iptirs_app;
