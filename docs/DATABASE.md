@@ -39,7 +39,7 @@ SET LOCAL app.current_user_id = 'verified-user-uuid';
 COMMIT;
 ```
 
-The values above must come from verified server-side identity and membership resolution, never from request-body fields, query parameters, or client-controlled headers. Always use parameterized SQL and rollback on errors. Never keep these settings on a pooled connection beyond the transaction.
+The API first sets app.current_auth_subject from the verified OIDC sub claim to look up the provisioned user, then sets the user and organization context after checking the active membership. These values must come from verified server-side identity and membership resolution, never from request-body fields, query parameters, or client-controlled identity headers. Always use parameterized SQL and rollback on errors. Never keep these settings on a pooled connection beyond the transaction.
 
 PostgreSQL custom settings are not a substitute for authentication: a database role with arbitrary SQL access can set them. Protect the API from SQL injection, restrict database network access to the API, and do not expose the database directly to users or partner systems.
 
