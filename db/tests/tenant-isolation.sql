@@ -2,6 +2,18 @@
 
 -- Run only after db/tests/seed-tenant-fixtures.sql has been applied as a
 -- database administrator. This file is executed as the restricted app role.
+SET app.current_auth_subject = 'test|alpha';
+
+DO $
+DECLARE visible_users integer;
+BEGIN
+  SELECT count(*) INTO visible_users FROM users;
+  IF visible_users <> 1 THEN
+    RAISE EXCEPTION 'OIDC subject bootstrap exposed unexpected user rows: %', visible_users;
+  END IF;
+END;
+$;
+
 SET app.current_organization_id = '10000000-0000-4000-8000-000000000001';
 SET app.current_user_id = '20000000-0000-4000-8000-000000000001';
 
@@ -9,8 +21,8 @@ DO $$
 DECLARE visible_cases integer;
 BEGIN
   SELECT count(*) INTO visible_cases FROM cases;
-  IF visible_cases <> 1 THEN
-    RAISE EXCEPTION 'Tenant isolation failed: expected 1 visible case, got %', visible_cases;
+  IF visible_cases <> 2 THEN
+    RAISE EXCEPTION 'Investigator scope failed: expected 2 organization cases, got %', visible_cases;
   END IF;
   IF EXISTS (SELECT 1 FROM cases WHERE id = '30000000-0000-4000-8000-000000000002') THEN
     RAISE EXCEPTION 'Cross-tenant case became visible';
@@ -31,7 +43,29 @@ BEGIN
 END;
 $$;
 
-DO $$
+
+DO $
+DECLARE visible_cases integer;
+DECLARE updated_cases integer;
+BEGIN
+  PERFORM set_config('app.current_user_id', '20000000-0000-4000-8000-000000000003', false);
+  SELECT count(*) INTO visible_cases FROM cases;
+  IF visible_cases <> 1 THEN
+    RAISE EXCEPTION 'Reporter scope failed: expected only its own case, got %', visible_cases;
+  END IF;
+
+  UPDATE cases SET status = 'closed'
+  WHERE id = '30000000-0000-4000-8000-000000000003';
+  GET DIAGNOSTICS updated_cases = ROW_COUNT;
+  IF updated_cases <> 0 THEN
+    RAISE EXCEPTION 'Reporter unexpectedly updated a case';
+  END IF;
+
+  PERFORM set_config('app.current_user_id', '20000000-0000-4000-8000-000000000001', false);
+END;
+$;
+
+DO $
 BEGIN
   IF has_table_privilege(current_user, 'audit_events', 'UPDATE')
      OR has_table_privilege(current_user, 'audit_events', 'DELETE') THEN
