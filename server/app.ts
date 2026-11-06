@@ -57,7 +57,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
       );
     }
 
-    request.log.error({ requestId: request.id, errorType: error.name }, 'Request failed');
+    request.log.error({ requestId: request.id, errorType: error instanceof Error ? error.name : 'unknown' }, 'Request failed');
     return reply.code(500).send(errorResponse('internal_error', 'The request could not be completed.'));
   });
 
