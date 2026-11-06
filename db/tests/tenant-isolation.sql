@@ -4,7 +4,7 @@
 -- database administrator. This file is executed as the restricted app role.
 SET app.current_auth_subject = 'test|alpha';
 
-DO $
+DO $$
 DECLARE visible_users integer;
 BEGIN
   SELECT count(*) INTO visible_users FROM users;
@@ -12,7 +12,7 @@ BEGIN
     RAISE EXCEPTION 'OIDC subject bootstrap exposed unexpected user rows: %', visible_users;
   END IF;
 END;
-$;
+$$;
 
 SET app.current_organization_id = '10000000-0000-4000-8000-000000000001';
 SET app.current_user_id = '20000000-0000-4000-8000-000000000001';
@@ -44,7 +44,7 @@ END;
 $$;
 
 
-DO $
+DO $$
 DECLARE visible_cases integer;
 DECLARE updated_cases integer;
 BEGIN
@@ -63,9 +63,9 @@ BEGIN
 
   PERFORM set_config('app.current_user_id', '20000000-0000-4000-8000-000000000001', false);
 END;
-$;
+$$;
 
-DO $
+DO $$
 BEGIN
   IF has_table_privilege(current_user, 'audit_events', 'UPDATE')
      OR has_table_privilege(current_user, 'audit_events', 'DELETE') THEN
