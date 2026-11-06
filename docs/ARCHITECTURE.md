@@ -24,7 +24,9 @@ The initial PostgreSQL migration creates:
 - Device records with encrypted-identifier storage and keyed-fingerprint fields. Raw IMEI/serial values must never be stored in plaintext.
 - Append-only case events, evidence metadata, evidence-access events, and audit events.
 - Authorization records and operator-request tracking records; these do not contact any external operator.
-- Tenant row-level security (RLS) policies, composite foreign keys, constraints, indexes, and restricted grants for a dedicated `iptirs_app` role.
+- Tenant and role-scoped row-level security (RLS) policies, composite foreign keys, constraints, indexes, and restricted grants for a dedicated `iptirs_app` role.
+- Reporter visibility is limited to cases they created; investigators and organization administrators have broader case access. Device/evidence records inherit visibility from their parent case. Audit reads are limited to organization administrators and auditors.
+- New authorization records can only be created in a pending state. The current app role cannot approve them; a separately authenticated approval workflow is still required. Operator request records can only be prepared against an approved, unexpired authorization record. The schema does not send requests to an operator.
 
 ### Database request context
 
