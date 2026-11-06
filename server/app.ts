@@ -173,6 +173,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
         const eventHash = createAuditDigest({
           organizationId,
           actorUserId: context.userId,
+          requestId: request.id,
           action: 'case.created',
           targetType: 'case',
           targetId: newCase.id,
@@ -181,8 +182,8 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
         });
 
         await client.query(
-          "INSERT INTO audit_events (organization_id, actor_user_id, action, target_type, target_id, metadata, event_hash, occurred_at) VALUES ($1, $2, 'case.created', 'case', $3, $4::jsonb, $5, $6)",
-          [organizationId, context.userId, newCase.id, JSON.stringify(auditMetadata), eventHash, occurredAt]
+          "INSERT INTO audit_events (organization_id, actor_user_id, request_id, action, target_type, target_id, metadata, event_hash, occurred_at) VALUES ($1, $2, $3, 'case.created', 'case', $4, $5::jsonb, $6, $7)",
+          [organizationId, context.userId, request.id, newCase.id, JSON.stringify(auditMetadata), eventHash, occurredAt]
         );
 
         return newCase;
