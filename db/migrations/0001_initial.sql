@@ -89,6 +89,7 @@ CREATE TABLE evidence_items (
   evidence_kind text NOT NULL CHECK (evidence_kind IN ('proof_of_ownership', 'purchase_record', 'police_reference', 'photo', 'document', 'other')),
   verification_status text NOT NULL DEFAULT 'pending_scan' CHECK (verification_status IN ('pending_scan', 'available', 'quarantined', 'rejected')),
   created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (organization_id, id),
   FOREIGN KEY (organization_id, case_id) REFERENCES cases(organization_id, id),
   FOREIGN KEY (organization_id, uploaded_by_user_id) REFERENCES memberships(organization_id, user_id)
 );
@@ -119,6 +120,7 @@ CREATE TABLE authorization_records (
   approved_by_user_id uuid,
   approved_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (organization_id, id),
   FOREIGN KEY (organization_id, case_id) REFERENCES cases(organization_id, id),
   FOREIGN KEY (organization_id, requested_by_user_id) REFERENCES memberships(organization_id, user_id),
   FOREIGN KEY (organization_id, approved_by_user_id) REFERENCES memberships(organization_id, user_id),
