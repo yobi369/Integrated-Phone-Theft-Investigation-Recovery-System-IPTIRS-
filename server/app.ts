@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance, type preHandlerHookHandler } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -61,7 +61,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     return reply.code(500).send(errorResponse('internal_error', 'The request could not be completed.'));
   });
 
-  const authenticate: preHandlerHookHandler = async (request, reply) => {
+  const authenticate = async (request: FastifyRequest, reply: FastifyReply) => {
     const token = extractBearerToken(request.headers.authorization);
     if (!token) {
       return reply.code(401).send(errorResponse('unauthorized', 'A valid bearer token is required.'));
