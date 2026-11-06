@@ -11,7 +11,8 @@
     "dev:api": "tsx watch server/index.ts",
     "build:api": "tsc -p tsconfig.server.json",
     "start:api": "node dist-server/index.js",
-    "test": "tsx --test server/*.test.ts"
+    "test": "tsx --test server/*.test.ts",
+    "test:db": "tsx --test server/db.integration.ts"
   },
   "dependencies": {
     "react": "^19.1.1",
