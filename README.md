@@ -63,7 +63,13 @@ The existing React + TypeScript + Vite interface contains dashboard, asset regis
 - Vite
 - Recharts
 
-A production backend, identity provider, transactional database, evidence storage, and institutional integrations are not yet established.
+A PostgreSQL schema and tenant-security migration are now part of the repository and are exercised in CI. There is still no deployed database, authenticated API, identity provider, evidence object storage, or institutional integration. The browser application remains a synthetic-data prototype.
+
+## Database foundation
+
+The initial PostgreSQL schema is in `db/migrations/0001_initial.sql`. It includes organization-scoped records, role-aware row-level security, append-only evidence/audit metadata, and a restricted application role. See [database setup and security notes](docs/DATABASE.md).
+
+The migration is not a deployed service. Do not connect real or sensitive data until the authenticated API, key management, evidence storage, operational controls, and independent review are complete.
 
 ## Development
 
