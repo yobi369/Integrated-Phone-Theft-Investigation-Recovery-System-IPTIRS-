@@ -17,7 +17,31 @@ $$;
 SET app.current_organization_id = '10000000-0000-4000-8000-000000000001';
 SET app.current_user_id = '20000000-0000-4000-8000-000000000001';
 
-DO $$
+DO $
+DECLARE before_update timestamptz;
+DECLARE after_update timestamptz;
+BEGIN
+  SELECT updated_at INTO before_update FROM cases
+  WHERE id = '30000000-0000-4000-8000-000000000001';
+  UPDATE cases SET status = 'under_review'
+  WHERE id = '30000000-0000-4000-8000-000000000001';
+  SELECT updated_at INTO after_update FROM cases
+  WHERE id = '30000000-0000-4000-8000-000000000001';
+  IF after_update <= before_update THEN
+    RAISE EXCEPTION 'Case updated_at trigger did not advance the timestamp';
+  END IF;
+
+  BEGIN
+    UPDATE cases SET case_reference = 'ALTERED-REFERENCE'
+    WHERE id = '30000000-0000-4000-8000-000000000001';
+    RAISE EXCEPTION 'Case reference was unexpectedly mutable';
+  EXCEPTION WHEN SQLSTATE '55000' THEN
+    NULL;
+  END;
+END;
+$;
+
+DO $
 DECLARE visible_cases integer;
 BEGIN
   SELECT count(*) INTO visible_cases FROM cases;
