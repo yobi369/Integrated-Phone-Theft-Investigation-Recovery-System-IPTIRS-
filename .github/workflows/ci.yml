@@ -72,3 +72,7 @@ jobs:
         run: |
           psql -h localhost -U postgres -d iptirs_test -v ON_ERROR_STOP=1 -f db/tests/seed-tenant-fixtures.sql
           PGPASSWORD=iptirs_test_only psql -h localhost -U iptirs_app -d iptirs_test -v ON_ERROR_STOP=1 -f db/tests/tenant-isolation.sql
+      - name: Exercise authenticated API against PostgreSQL
+        env:
+          DATABASE_URL: postgresql://iptirs_app:iptirs_test_only@localhost:5432/iptirs_test
+        run: npm run test:db
