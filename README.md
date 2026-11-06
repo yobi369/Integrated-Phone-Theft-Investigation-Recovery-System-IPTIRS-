@@ -62,8 +62,14 @@ The existing React + TypeScript + Vite interface contains dashboard, asset regis
 - TypeScript
 - Vite
 - Recharts
+- Fastify API service with OIDC JWT verification
+- PostgreSQL schema with tenant- and role-scoped row-level security
 
-A PostgreSQL schema and tenant-security migration are now part of the repository and are exercised in CI. There is still no deployed database, authenticated API, identity provider, evidence object storage, or institutional integration. The browser application remains a synthetic-data prototype.
+The API now implements authenticated organization context, case listing/creation, health checks, and event/audit metadata writes. It is not yet deployed or connected to the browser application. No OIDC provider, production database, evidence object storage, or institutional integration has been configured.
+
+## API foundation
+
+A separate Node.js API is available in `server/`. It verifies JWT access tokens against a configured OIDC issuer/JWKS, checks active organization membership, and exposes health, current-membership, and basic case list/create endpoints. See [API setup and limits](docs/API.md).
 
 ## Database foundation
 
