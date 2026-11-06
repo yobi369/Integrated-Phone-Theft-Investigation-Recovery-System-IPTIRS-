@@ -186,7 +186,7 @@ CREATE TRIGGER cases_set_updated_at
   FOR EACH ROW EXECUTE FUNCTION set_case_updated_at();
 
 CREATE FUNCTION protect_case_identity_fields() RETURNS trigger
-LANGUAGE plpgsql AS $
+LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW.organization_id IS DISTINCT FROM OLD.organization_id
     OR NEW.case_reference IS DISTINCT FROM OLD.case_reference
@@ -196,14 +196,14 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$$;
 
 CREATE TRIGGER cases_protect_identity_fields
   BEFORE UPDATE ON cases
   FOR EACH ROW EXECUTE FUNCTION protect_case_identity_fields();
 
 CREATE FUNCTION protect_operator_request_identity_fields() RETURNS trigger
-LANGUAGE plpgsql AS $
+LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW.organization_id IS DISTINCT FROM OLD.organization_id
     OR NEW.case_id IS DISTINCT FROM OLD.case_id
@@ -214,7 +214,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$$;
 
 CREATE TRIGGER operator_requests_protect_identity_fields
   BEFORE UPDATE ON operator_requests
