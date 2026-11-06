@@ -16,12 +16,17 @@ Deliver in reviewable phases. Do not claim production readiness, legal complianc
 
 ## Phase 1 — Secure case-management MVP
 
-- Select backend, database, identity, and evidence-storage architecture.
-- Implement organizations, memberships, roles, and server-side authorization.
-- Implement citizen intake, reference numbers, duplicate review, and case workflows.
-- Implement device records and ownership-verification states.
-- Implement evidence upload, hash, malware scanning, provenance, and access history.
-- Implement append-only audit events and tenant-isolation tests.
+**Progress:** initial PostgreSQL data model, role-scoped RLS policies, composite tenant foreign keys, append-only case/evidence/audit metadata, and CI tenant-isolation checks are being implemented. This is a database foundation only; it is not yet an authenticated API or deployed service.
+
+- [x] Define initial organizations, users, memberships, cases, device, evidence, authorization, operator-request, and audit tables.
+- [x] Add database-enforced tenant boundaries and role-scoped case visibility.
+- [x] Restrict audit and evidence records against application-role updates/deletes.
+- [ ] Select and integrate an institutional identity provider and server-side API.
+- [ ] Implement citizen intake, reference numbers, duplicate review, and case workflows.
+- [ ] Implement encrypted evidence object storage, malware scanning, provenance, and access history.
+- [ ] Implement an independent approval workflow for sensitive operator requests.
+- [ ] Implement append-only audit hash generation and verification in the trusted backend.
+- [ ] Add end-to-end authorization, tenant-isolation, and evidence-integrity tests.
 
 **Exit gate:** end-to-end synthetic-data tests pass, including cross-tenant denial and evidence integrity checks.
 
