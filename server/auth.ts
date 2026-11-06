@@ -20,8 +20,13 @@ export function createTokenVerifier(options: {
       algorithms: ['RS256', 'ES256']
     });
 
-    if (typeof payload.sub !== 'string' || payload.sub.length === 0) {
-      throw new Error('The verified identity token does not contain a subject.');
+    const now = Math.floor(Date.now() / 1000);
+    if (
+      typeof payload.sub !== 'string' || payload.sub.length === 0 ||
+      typeof payload.exp !== 'number' || payload.exp <= now ||
+      typeof payload.iat !== 'number' || payload.iat > now + 60
+    ) {
+      throw new Error('The verified access token is missing required identity or time claims.');
     }
 
     return { subject: payload.sub };
