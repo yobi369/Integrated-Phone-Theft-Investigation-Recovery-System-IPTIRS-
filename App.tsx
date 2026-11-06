@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import Dashboard from './components/Dashboard';
-import AssetRegistry from './components/AssetRegistry';
-import LiveTracking from './components/LiveTracking';
-import Forensics from './components/Forensics';
-import SystemConfig from './components/SystemConfig';
+
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const AssetRegistry = lazy(() => import('./components/AssetRegistry'));
+const LiveTracking = lazy(() => import('./components/LiveTracking'));
+const Forensics = lazy(() => import('./components/Forensics'));
+const SystemConfig = lazy(() => import('./components/SystemConfig'));
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<string>('command_center');
@@ -40,7 +41,9 @@ const App: React.FC = () => {
               or verified case analytics are connected. Do not enter real personal or investigative data.
             </p>
           </div>
-          {renderContent()}
+          <Suspense fallback={<div role="status" className="rounded-lg border border-brand-light bg-brand-secondary p-6 text-sm text-brand-text-secondary">Loading prototype view…</div>}>
+            {renderContent()}
+          </Suspense>
         </main>
       </div>
     </div>
