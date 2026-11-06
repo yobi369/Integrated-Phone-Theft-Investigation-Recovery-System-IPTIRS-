@@ -27,6 +27,7 @@ test('audit event digest is deterministic and changes with event data', () => {
   const event = {
     organizationId: '10000000-0000-4000-8000-000000000001',
     actorUserId: '20000000-0000-4000-8000-000000000001',
+    requestId: 'request-123',
     action: 'case.created',
     targetType: 'case',
     targetId: '30000000-0000-4000-8000-000000000001',
@@ -38,6 +39,11 @@ test('audit event digest is deterministic and changes with event data', () => {
   assert.equal(first, createAuditDigest(event));
   assert.match(first, /^[0-9a-f]{64}$/);
   assert.notEqual(first, createAuditDigest({ ...event, metadata: { priority: 'high' } }));
+  assert.equal(first, createAuditDigest({ ...event, metadata: { priority: 'normal' } }));
+  assert.equal(
+    createAuditDigest({ ...event, metadata: { priority: 'normal', category: 'phone_theft' } }),
+    createAuditDigest({ ...event, metadata: { category: 'phone_theft', priority: 'normal' } })
+  );
 });
 
 test('bearer token extraction accepts only a single bearer credential', () => {
