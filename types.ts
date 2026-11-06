@@ -20,9 +20,7 @@ export interface Case {
 export interface Kpi {
   title: string;
   value: string;
-  target: number; // percentage
   change: string;
-  changeType: 'increase' | 'decrease';
   description: string;
 }
 
