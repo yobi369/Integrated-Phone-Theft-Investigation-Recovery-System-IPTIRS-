@@ -33,13 +33,13 @@ IPTIRS is being developed as a secure workflow platform to help citizens, author
 
 ## Current prototype
 
-The existing React + TypeScript + Vite interface contains dashboard, asset registry, tracking-themed, forensics-themed, and configuration screens. Several current screens use hard-coded demonstration records and simulated visuals. These are not operational data and must be clearly marked as demo content until replaced with validated backend services.
+The React + TypeScript + Vite interface remains a synthetic-data prototype. Its views are labeled as demo content; tracking, reporting, and configuration screens do not connect to operational systems. The separate API is not yet connected to this browser interface.
 
 ## Product development principles
 
 1. **Lawful by design:** sensitive requests require a documented legal basis, authorization, purpose, and accountable decision.
 2. **Privacy by design:** collect the minimum information necessary; restrict access and enforce retention/deletion rules.
-3. **Evidence integrity:** preserve provenance, timestamps, actor identity, and tamper-evident audit history.
+3. **Evidence integrity:** preserve provenance, timestamps, actor identity, append-only events, and verifiable integrity controls. Current audit rows have per-event SHA-256 digests; external anchoring and verification are still required.
 4. **No false capability claims:** no simulated map, AI output, or sample statistic may be represented as live intelligence.
 5. **Institutional separation:** organizations and cases must be isolated by tenant and role.
 6. **Security before integrations:** external integrations remain disabled until reviewed, contracted, authenticated, and tested.
@@ -61,7 +61,6 @@ The existing React + TypeScript + Vite interface contains dashboard, asset regis
 - React 19
 - TypeScript
 - Vite
-- Recharts
 - Fastify API service with OIDC JWT verification
 - PostgreSQL schema with tenant- and role-scoped row-level security
 
