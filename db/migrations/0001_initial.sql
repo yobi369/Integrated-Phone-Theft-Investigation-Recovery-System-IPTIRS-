@@ -173,19 +173,19 @@ CREATE INDEX operator_requests_org_status_idx ON operator_requests(organization_
 CREATE INDEX audit_events_org_time_idx ON audit_events(organization_id, occurred_at DESC);
 
 CREATE FUNCTION set_case_updated_at() RETURNS trigger
-LANGUAGE plpgsql AS $
+LANGUAGE plpgsql AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$;
+$$;
 
 CREATE TRIGGER cases_set_updated_at
   BEFORE UPDATE ON cases
   FOR EACH ROW EXECUTE FUNCTION set_case_updated_at();
 
 CREATE FUNCTION reject_immutable_row_mutation() RETURNS trigger
-LANGUAGE plpgsql AS $
+LANGUAGE plpgsql AS $$
 BEGIN
   RAISE EXCEPTION 'This record is append-only; create a new event instead.'
     USING ERRCODE = '55000';
