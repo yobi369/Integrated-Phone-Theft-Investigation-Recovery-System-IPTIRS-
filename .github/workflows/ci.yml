@@ -43,6 +43,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Install dependencies
         run: npm install
+      - name: Summarize dependency audit findings
+        run: |
+          npm audit --json > /tmp/npm-audit.json || true
+          node -e 'const report = require("/tmp/npm-audit.json"); for (const [name, item] of Object.entries(report.vulnerabilities ?? {})) { console.log(name + ": " + item.severity + "; direct=" + item.isDirect + "; fix=" + JSON.stringify(item.fixAvailable)); for (const via of item.via ?? []) if (typeof via === "object") console.log("  " + (via.title ?? via.name) + ": " + (via.range ?? "")); }'
       - name: Type-check
         run: npm run typecheck
       - name: API type-check and compile
