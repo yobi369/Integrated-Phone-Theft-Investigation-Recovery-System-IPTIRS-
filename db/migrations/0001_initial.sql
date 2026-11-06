@@ -143,6 +143,7 @@ CREATE TABLE operator_requests (
   FOREIGN KEY (organization_id, case_id) REFERENCES cases(organization_id, id),
   FOREIGN KEY (organization_id, authorization_record_id) REFERENCES authorization_records(organization_id, id),
   FOREIGN KEY (organization_id, created_by_user_id) REFERENCES memberships(organization_id, user_id),
+  CHECK (status NOT IN ('submitted_out_of_band', 'acknowledged', 'responded', 'declined') OR submitted_at IS NOT NULL),
   CHECK ((status IN ('responded', 'declined')) = (responded_at IS NOT NULL))
 );
 
@@ -171,8 +172,20 @@ CREATE INDEX authorization_records_org_case_status_idx ON authorization_records(
 CREATE INDEX operator_requests_org_status_idx ON operator_requests(organization_id, status, created_at DESC);
 CREATE INDEX audit_events_org_time_idx ON audit_events(organization_id, occurred_at DESC);
 
+CREATE FUNCTION set_case_updated_at() RETURNS trigger
+LANGUAGE plpgsql AS $
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$;
+
+CREATE TRIGGER cases_set_updated_at
+  BEFORE UPDATE ON cases
+  FOR EACH ROW EXECUTE FUNCTION set_case_updated_at();
+
 CREATE FUNCTION reject_immutable_row_mutation() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql AS $
 BEGIN
   RAISE EXCEPTION 'This record is append-only; create a new event instead.'
     USING ERRCODE = '55000';
