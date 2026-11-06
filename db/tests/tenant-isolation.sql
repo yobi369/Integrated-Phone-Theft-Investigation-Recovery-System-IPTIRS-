@@ -17,7 +17,7 @@ $$;
 SET app.current_organization_id = '10000000-0000-4000-8000-000000000001';
 SET app.current_user_id = '20000000-0000-4000-8000-000000000001';
 
-DO $
+DO $$
 DECLARE before_update timestamptz;
 DECLARE after_update timestamptz;
 BEGIN
@@ -39,9 +39,9 @@ BEGIN
     NULL;
   END;
 END;
-$;
+$$;
 
-DO $
+DO $$
 DECLARE visible_cases integer;
 BEGIN
   SELECT count(*) INTO visible_cases FROM cases;
