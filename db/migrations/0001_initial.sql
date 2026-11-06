@@ -143,6 +143,7 @@ CREATE TABLE operator_requests (
   FOREIGN KEY (organization_id, case_id) REFERENCES cases(organization_id, id),
   FOREIGN KEY (organization_id, authorization_record_id) REFERENCES authorization_records(organization_id, id),
   FOREIGN KEY (organization_id, created_by_user_id) REFERENCES memberships(organization_id, user_id),
+  CHECK (status <> 'prepared' OR submitted_at IS NULL),
   CHECK (status NOT IN ('submitted_out_of_band', 'acknowledged', 'responded', 'declined') OR submitted_at IS NOT NULL),
   CHECK ((status IN ('responded', 'declined')) = (responded_at IS NOT NULL))
 );
@@ -184,6 +185,40 @@ CREATE TRIGGER cases_set_updated_at
   BEFORE UPDATE ON cases
   FOR EACH ROW EXECUTE FUNCTION set_case_updated_at();
 
+CREATE FUNCTION protect_case_identity_fields() RETURNS trigger
+LANGUAGE plpgsql AS $
+BEGIN
+  IF NEW.organization_id IS DISTINCT FROM OLD.organization_id
+    OR NEW.case_reference IS DISTINCT FROM OLD.case_reference
+    OR NEW.created_by_user_id IS DISTINCT FROM OLD.created_by_user_id
+    OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'Case identity fields are immutable.' USING ERRCODE = '55000';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+CREATE TRIGGER cases_protect_identity_fields
+  BEFORE UPDATE ON cases
+  FOR EACH ROW EXECUTE FUNCTION protect_case_identity_fields();
+
+CREATE FUNCTION protect_operator_request_identity_fields() RETURNS trigger
+LANGUAGE plpgsql AS $
+BEGIN
+  IF NEW.organization_id IS DISTINCT FROM OLD.organization_id
+    OR NEW.case_id IS DISTINCT FROM OLD.case_id
+    OR NEW.authorization_record_id IS DISTINCT FROM OLD.authorization_record_id
+    OR NEW.created_by_user_id IS DISTINCT FROM OLD.created_by_user_id
+    OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'Operator request identity fields are immutable.' USING ERRCODE = '55000';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+CREATE TRIGGER operator_requests_protect_identity_fields
+  BEFORE UPDATE ON operator_requests
+  FOR EACH ROW EXECUTE FUNCTION protect_operator_request_identity_fields();
 CREATE FUNCTION reject_immutable_row_mutation() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
