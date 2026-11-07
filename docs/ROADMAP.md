@@ -27,7 +27,7 @@ Deliver in reviewable phases. Do not claim production readiness, legal complianc
 - [x] Record assignment and status history in append-only case events and audit records.
 - [x] Test reporter restrictions, cross-tenant denial, assignment lifecycle, and invalid status transitions.
 - [x] Connect the React case workspace to the authenticated API using OIDC authorization code + PKCE.
-- [x] Add investigator-facing case creation, status, assignment, and timeline controls to the browser workspace.
+- [x] Add investigator-facing case creation, status, assignment, and timeline controls to the browser workspace, including a tenant-scoped active investigator directory.
 - [ ] Implement citizen intake, report reference numbers, duplicate review, and permitted public status updates.
 
 **Exit gate:** investigators can complete a synthetic case workflow through the browser interface using a configured identity provider. Backend API workflow tests currently pass; browser integration and real identity configuration remain outstanding.
@@ -43,7 +43,7 @@ Deliver in reviewable phases. Do not claim production readiness, legal complianc
 - [x] Restrict authorization updates to a dedicated non-login, non-BYPASSRLS database role and narrowly scoped decision function.
 - [x] Test approval, rejection, role denial, self-approval prevention, and audit visibility.
 - [ ] Add request expiry processing, withdrawal, and escalation policies.
-- [ ] Add operator request package preparation and response recording, without live network access.
+- [x] Add browser controls for purpose-limited authorization request creation and independent approval/rejection with mandatory reasons.\n- [ ] Add operator request package preparation and response recording, without live network access.
 - [ ] Obtain institutional review of approval roles, legal-reference requirements, and decision procedures.
 
 **Exit gate:** a participating institution approves the workflow and confirms that the authorization record matches its legal and operational controls. IPTIRS does not send or execute operator requests.
