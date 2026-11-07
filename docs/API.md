@@ -92,3 +92,10 @@ Allowed categories are `phone_theft`, `device_loss`, and `institutional_asset_lo
 - `GET /v1/evidence/:evidenceId/download?purpose=...` — retrieves only available evidence, verifies SHA-256 and byte size, records the access purpose, and returns `Cache-Control: private, no-store` content. Downloads are proxied; public object URLs are never exposed.
 
 The API currently supports only the initial storage/scanning workflow. Retention, legal holds, external integrity anchoring, derivative management, and institution-approved custody procedures remain outstanding.
+
+## Organization membership administration
+
+- `GET /v1/organization/members` — organization administrators can list membership identity and role/status metadata.
+- `PATCH /v1/organization/members/{userId}` — organization administrators can change a member's role and/or set membership status to active, suspended, or revoked. Self-modification is blocked, and the last active organization administrator cannot be demoted or suspended. Every change writes an audit event.
+
+This is not an invitation or identity-provisioning service. An account must already exist in the institution's OIDC identity provider and in IPTIRS' user directory before membership administration. Invitations, email delivery, identity lifecycle synchronization, and MFA enforcement must be integrated with the institution's chosen identity provider before deployment.
