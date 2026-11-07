@@ -28,7 +28,7 @@ The initial PostgreSQL migration creates:
 - Authorization records and operator-request tracking records; these do not contact any external operator.
 - Tenant and role-scoped row-level security (RLS) policies, composite foreign keys, constraints, indexes, and restricted grants for a dedicated `iptirs_app` role.
 - Reporter visibility is limited to cases they created; investigators and organization administrators have broader case access. Device/evidence records inherit visibility from their parent case. Audit reads are limited to organization administrators and auditors.
-- New authorization records can only be created in a pending state. The current app role cannot approve them; a separately authenticated approval workflow is still required. Operator request records can only be prepared against an approved, unexpired authorization record. The schema does not send requests to an operator.
+- New authorization records can only be created in a pending state by investigators or organization administrators. Decisions are made through a narrowly scoped SECURITY DEFINER function owned by a non-login, non-BYPASSRLS database role; only an organization administrator or dedicated authorization approver can decide, and self-approval is rejected at the database boundary. The general app role has no direct UPDATE grant on authorization records. Decisions retain actor, timestamp, and reason. Operator request records can only be prepared against an approved, unexpired authorization record. The schema does not send requests to an operator.
 
 ### Database request context
 
