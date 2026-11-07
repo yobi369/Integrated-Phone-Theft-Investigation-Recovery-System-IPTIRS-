@@ -125,7 +125,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     origin: dependencies.config.corsOrigins,
     credentials: false,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Authorization', 'Content-Type', 'X-Organization-Id']
+    allowedHeaders: ['Authorization', 'Content-Type', 'X-Organization-Id', 'X-Access-Purpose']
   });
   await app.register(multipart, { limits: { fileSize: 50 * 1024 * 1024, files: 1, fields: 5, parts: 6 }, throwFileSizeLimit: true });
   await app.register(rateLimit, {
