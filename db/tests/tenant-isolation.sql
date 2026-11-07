@@ -32,6 +32,14 @@ BEGIN
   END IF;
 
   BEGIN
+    UPDATE cases SET status = 'recovered'
+    WHERE id = '30000000-0000-4000-8000-000000000001';
+    RAISE EXCEPTION 'Database unexpectedly allowed a skipped case status transition';
+  EXCEPTION WHEN check_violation THEN
+    NULL;
+  END;
+
+  BEGIN
     UPDATE cases SET case_reference = 'ALTERED-REFERENCE'
     WHERE id = '30000000-0000-4000-8000-000000000001';
     RAISE EXCEPTION 'Case reference was unexpectedly mutable';
