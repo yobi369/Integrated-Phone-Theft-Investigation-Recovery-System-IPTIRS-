@@ -26,4 +26,20 @@ CREATE POLICY users_admin_select_policy ON users
     )
   );
 
-GRANT UPDATE ON memberships TO iptirs_app;
+GRANT UPDATE (role, status) ON memberships TO iptirs_app;
+
+CREATE FUNCTION protect_membership_identity() RETURNS trigger
+LANGUAGE plpgsql AS $
+BEGIN
+  IF NEW.organization_id IS DISTINCT FROM OLD.organization_id
+    OR NEW.user_id IS DISTINCT FROM OLD.user_id
+    OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'Membership identity fields are immutable.' USING ERRCODE = '55000';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+CREATE TRIGGER memberships_protect_identity
+  BEFORE UPDATE ON memberships
+  FOR EACH ROW EXECUTE FUNCTION protect_membership_identity();
