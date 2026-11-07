@@ -18,6 +18,7 @@ import {
   updateCaseStatusSchema
 } from './schemas.js';
 import type { AppConfig } from './config.js';
+import { registerEvidenceRoutes } from './evidence.js';
 
 interface AppDependencies {
   config: Pick<AppConfig, 'nodeEnv' | 'corsOrigins' | 'rateLimitMax'>;
@@ -483,6 +484,8 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     if (!decision) return reply.code(404).send(errorResponse('not_found', 'The authorization request was not found.'));
     return { data: decision };
   });
+
+  await registerEvidenceRoutes(app, { pool: dependencies.pool, verifyToken: dependencies.verifyToken });
 
   return app;
 }
