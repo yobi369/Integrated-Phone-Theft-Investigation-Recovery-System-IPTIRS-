@@ -43,3 +43,15 @@ $membership_guard$;
 CREATE TRIGGER memberships_protect_identity
   BEFORE UPDATE ON memberships
   FOR EACH ROW EXECUTE FUNCTION protect_membership_identity();
+
+CREATE POLICY users_staff_select_policy ON users
+  FOR SELECT USING (
+    nullif(current_setting('app.current_role', true), '') IN ('organization_admin', 'investigator')
+    AND EXISTS (
+      SELECT 1 FROM memberships m
+       WHERE m.user_id = users.id
+         AND m.organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+         AND m.status = 'active'
+         AND m.role IN ('organization_admin', 'investigator')
+    )
+  );
