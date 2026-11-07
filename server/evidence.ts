@@ -190,9 +190,8 @@ export async function registerEvidenceRoutes(app: FastifyInstance, dependencies:
     const config = evidenceConfiguration();
     if (!config) return reply.code(503).send(error('evidence_unavailable', 'Evidence storage and malware scanning are not configured.'));
     const orgHeader = request.headers['x-organization-id'];
-    const query = request.query as { purpose?: string };
-    const accessPurpose = query.purpose;
-    if (typeof orgHeader !== 'string' || !/^[0-9a-f-]{36}$/i.test(orgHeader) || !accessPurpose || accessPurpose.trim().length < 5 || accessPurpose.length > 500) {
+    const accessPurpose = request.headers['x-access-purpose'];
+    if (typeof orgHeader !== 'string' || !/^[0-9a-f-]{36}$/i.test(orgHeader) || typeof accessPurpose !== 'string' || accessPurpose.trim().length < 5 || accessPurpose.length > 500) {
       return reply.code(400).send(error('invalid_request', 'Organization and a 5–500 character access purpose are required.'));
     }
     const evidenceId = (request.params as { evidenceId?: string }).evidenceId;
