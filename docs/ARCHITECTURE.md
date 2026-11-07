@@ -21,6 +21,8 @@ This document describes a proposed target architecture. The database migration i
 The initial PostgreSQL migration creates:
 - Organizations, external-identity user records, and organization memberships.
 - Cases with organization-scoped references and workflow states.
+- Case assignments with immutable assignment identity, release history, active-assignee uniqueness, and role-scoped access.
+- Database-enforced case status transition rules and append-only case timeline events.
 - Device records with encrypted-identifier storage and keyed-fingerprint fields. Raw IMEI/serial values must never be stored in plaintext.
 - Append-only case events, evidence metadata, evidence-access events, and audit events.
 - Authorization records and operator-request tracking records; these do not contact any external operator.
