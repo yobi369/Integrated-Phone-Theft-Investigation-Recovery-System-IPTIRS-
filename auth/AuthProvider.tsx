@@ -57,7 +57,20 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{
     void initialization.current.then(existing => {
       if (active) setUser(existing && !existing.expired ? existing : null);
     }).catch(() => {
-      if (active) setError('Identity sign-in could not be completed. Check the OIDC client and redirect URI configuration.');
+      if (!active) return;
+      // Auth0 returns OAuth errors on the callback URL. Surface only the
+      // provider's error code and bounded description; never expose state,
+      // authorization codes, tokens, or the full callback URL.
+      const callbackParams = new URLSearchParams(window.location.search);
+      const providerError = callbackParams.get('error');
+      const providerDescription = callbackParams.get('error_description');
+      if (providerError) {
+        const safeCode = providerError.slice(0, 80);
+        const safeDescription = (providerDescription ?? 'No description supplied by the identity provider.').slice(0, 300);
+        setError(`Identity provider returned ${safeCode}: ${safeDescription}`);
+      } else {
+        setError('Identity sign-in could not be completed. Check the OIDC client and redirect URI configuration.');
+      }
     }).finally(() => {
       if (active) setReady(true);
     });
