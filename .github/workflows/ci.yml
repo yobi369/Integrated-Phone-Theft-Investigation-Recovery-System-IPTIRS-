@@ -69,6 +69,7 @@ jobs:
           psql -h localhost -U postgres -d iptirs_test -v ON_ERROR_STOP=1 -f db/migrations/0001_initial.sql
           psql -h localhost -U postgres -d iptirs_test -v ON_ERROR_STOP=1 -f db/migrations/0002_case_workflow.sql
           psql -h localhost -U postgres -d iptirs_test -v ON_ERROR_STOP=1 -f db/migrations/0003_authorization_decisions.sql
+          psql -h localhost -U postgres -d iptirs_test -v ON_ERROR_STOP=1 -f db/migrations/0004_evidence_workflow.sql
       - name: Verify tenant isolation and immutable records
         env:
           PGPASSWORD: postgres
