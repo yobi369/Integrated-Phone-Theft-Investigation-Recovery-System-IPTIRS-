@@ -1,7 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import net from 'node:net';
-import { Readable } from 'node:stream';
-import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
+import { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { fileTypeFromBuffer } from 'file-type';
 import type { Pool } from 'pg';
@@ -172,6 +171,7 @@ export async function registerEvidenceRoutes(app: FastifyInstance, dependencies:
     const orgHeader = request.headers['x-organization-id'];
     if (typeof orgHeader !== 'string') return reply.code(400).send(error('invalid_organization', 'A valid X-Organization-Id header is required.'));
     const caseId = (request.params as { caseId?: string }).caseId;
+    if (!caseId || !/^[0-9a-f-]{36}$/i.test(caseId)) return reply.code(400).send(error('invalid_request', 'A valid case identifier is required.'));
     const records = await withTenantContext(dependencies.pool, identity.subject, orgHeader, async (client) => {
       const result = await client.query(
         `SELECT id, sha256, media_type, byte_size, evidence_kind, verification_status, created_at
