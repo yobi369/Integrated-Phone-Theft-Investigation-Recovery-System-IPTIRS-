@@ -64,7 +64,7 @@ The React + TypeScript + Vite interface remains a synthetic-data prototype. Its 
 - Fastify API service with OIDC JWT verification
 - PostgreSQL schema with tenant- and role-scoped row-level security
 
-The API now implements authenticated organization context, case listing/creation, health checks, and event/audit metadata writes. It is not yet deployed or connected to the browser application. No OIDC provider, production database, evidence object storage, or institutional integration has been configured.
+The API now implements authenticated organization context, case listing/creation/detail, investigator assignment/release, controlled status transitions, chronological case events, and independent authorization request decisions. It is not deployed or connected to the browser application. No real OIDC provider, production database, evidence object storage, or institutional integration has been configured.
 
 ## API foundation
 
