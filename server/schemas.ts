@@ -55,3 +55,8 @@ export type UpdateCaseStatusInput = z.infer<typeof updateCaseStatusSchema>;
 export type CreateCaseAssignmentInput = z.infer<typeof createCaseAssignmentSchema>;
 export type CreateAuthorizationInput = z.infer<typeof createAuthorizationSchema>;
 export type DecideAuthorizationInput = z.infer<typeof decideAuthorizationSchema>;
+
+export const updateMembershipSchema = z.object({
+  role: z.enum(['organization_admin', 'investigator', 'authorization_approver', 'operator_liaison', 'auditor', 'reporter']).optional(),
+  status: z.enum(['active', 'suspended', 'revoked']).optional()
+}).strict();
