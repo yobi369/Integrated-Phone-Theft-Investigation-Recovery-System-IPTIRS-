@@ -29,7 +29,7 @@ CREATE POLICY users_admin_select_policy ON users
 GRANT UPDATE (role, status) ON memberships TO iptirs_app;
 
 CREATE FUNCTION protect_membership_identity() RETURNS trigger
-LANGUAGE plpgsql AS $
+LANGUAGE plpgsql AS $membership_guard$
 BEGIN
   IF NEW.organization_id IS DISTINCT FROM OLD.organization_id
     OR NEW.user_id IS DISTINCT FROM OLD.user_id
@@ -38,7 +38,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$membership_guard$;
 
 CREATE TRIGGER memberships_protect_identity
   BEFORE UPDATE ON memberships
