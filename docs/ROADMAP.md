@@ -50,11 +50,11 @@ Deliver in reviewable phases. Do not claim production readiness, legal complianc
 
 ## Phase 3 — Evidence management
 
-- [ ] Implement private encrypted object storage with tenant-separated access.
-- [ ] Add upload quarantine, malware scanning, media validation, and size/type restrictions.
-- [ ] Verify content hashes on upload and retrieval.
-- [ ] Record provenance, source timestamps, uploader identity, derivatives, and chain-of-custody events.
-- [ ] Add access logging, retention schedules, legal holds, controlled exports, and authorized deletion.
+- [x] Add a private S3-compatible object-storage adapter with server-side encryption; deployment remains disabled until a private bucket is configured.
+- [x] Add fail-closed ClamAV scanning, file-signature validation, and 50 MiB/type restrictions; scanner configuration is still required.
+- [x] Compute SHA-256 on upload and verify hash and byte size before downloads.
+- [x] Record uploader identity, content hash, media type, size, upload/download purpose, and append-only case timeline/access events.
+- [x] Add append-only upload/download access logging.\n- [ ] Add retention schedules, legal holds, controlled exports, and authorized deletion.
 - [ ] Test evidence integrity, malicious uploads, tenant isolation, and recovery.
 
 **Exit gate:** independent evidence-integrity tests pass and storage, retention, and custody procedures are approved.
