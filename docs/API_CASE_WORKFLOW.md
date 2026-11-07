@@ -80,6 +80,39 @@ The database enforces one active assignment per case and assignee. Assignment cr
 
 Requires an active investigator or organization administrator. Release is recorded with a timestamp; assignment identity is immutable and released records cannot be reactivated. A new assignment creates a new history record.
 
+### Request sensitive operator authorization
+
+`POST /v1/cases/{caseId}/authorizations`
+
+Requires an investigator or organization administrator. The request remains pending until independently decided.
+
+```json
+{
+  "purpose": "Request a limited operator status check for this synthetic case.",
+  "requestedAction": "operator_status_check",
+  "legalAuthorityReference": "SYNTHETIC-TEST-AUTHORITY",
+  "scope": { "testOnly": true, "fields": ["request_status"] },
+  "validUntil": "2027-01-01T12:00:00Z"
+}
+```
+
+The legal-authority reference is recorded as supplied; IPTIRS does not determine whether it is legally sufficient.
+
+### Approve or reject a request
+
+`POST /v1/authorizations/{authorizationId}/decision`
+
+Requires an active `authorization_approver` or organization administrator membership. The requester cannot decide their own request, even if they also hold an approver-capable role. Every decision requires a reason. A dedicated non-login database role and restricted SECURITY DEFINER function enforce the decision boundary; the general application database role has no direct UPDATE grant on authorization records.
+
+```json
+{
+  "decision": "approved",
+  "reason": "Independent reviewer examined the request scope and supporting reference."
+}
+```
+
+Approval records the decision-maker and timestamp. Rejection is also retained as a decision, with its reason. Neither action sends a request to an operator. The external operator must independently validate and process any request under its own controls.
+
 ## Error semantics
 
 - `400 invalid_request`: invalid parameters or body.
