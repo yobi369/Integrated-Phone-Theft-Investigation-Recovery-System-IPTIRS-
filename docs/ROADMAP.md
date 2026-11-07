@@ -29,7 +29,7 @@ Deliver in reviewable phases. Do not claim production readiness, legal complianc
 - [ ] Connect the browser case workspace to the authenticated API and build investigator assignment/status controls.
 - [ ] Implement citizen intake, reference numbers, duplicate review, and public-facing case status workflows.
 - [ ] Implement encrypted evidence object storage, malware scanning, provenance, and access history.
-- [ ] Implement an independent approval workflow for sensitive operator requests.
+- [x] Implement pending authorization requests, independent approval/rejection, mandatory decision reasons, non-self-approval, and audit/timeline records.
 - [x] Generate a per-event SHA-256 audit digest for case creation.
 - [ ] Add chained/external audit checkpoints and independent verification.
 - [x] Add PostgreSQL integration tests for tenant isolation, reporter scope, and authenticated case creation.
