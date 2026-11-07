@@ -162,8 +162,8 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
     if (!purpose || purpose.trim().length < 5 || !selectedId) return;
     setBusy(true); setError('');
     try {
-      const response = await fetch(new URL(`/v1/evidence/${item.id}/download?purpose=${encodeURIComponent(purpose.trim())}`, apiBaseUrl), {
-        headers: { Authorization: `Bearer ${token}`, 'X-Organization-Id': organizationId },
+      const response = await fetch(new URL(`/v1/evidence/${item.id}/download`, apiBaseUrl), {
+        headers: { Authorization: `Bearer ${token}`, 'X-Organization-Id': organizationId, 'X-Access-Purpose': purpose.trim() },
         credentials: 'omit'
       });
       if (!response.ok) {
