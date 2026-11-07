@@ -85,3 +85,8 @@ Evidence upload remains unavailable until all of the following are provisioned a
 - A documented restore and incident-response procedure. Never use real personal or investigative evidence during development testing.
 
 The API rejects uploads when storage/scanning configuration is incomplete or scanning fails. The current implementation does not yet provide retention schedules, legal holds, external hash anchoring, or an independent forensic validation report.
+
+
+## Browser identity configuration
+
+Follow [the browser OIDC setup guide](FRONTEND_AUTH_SETUP.md) to register the institution-owned public client, exact callback URLs, PKCE settings, API issuer/audience/JWKS validation, CORS origin, and synthetic staging tests. Browser `VITE_*` variables are public build-time values; never place secrets in them. The current client is configured for one organization UUID per build.
