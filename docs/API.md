@@ -9,13 +9,19 @@
 | GET | `/v1/me` | Current provisioned user, active organization, and membership role |
 | GET | `/v1/cases` | List cases visible to the current membership; optional `limit` from 1 to 100 |
 | POST | `/v1/cases` | Create a case, append a case event, and write an audit digest |
+| GET | `/v1/cases/{caseId}` | Retrieve visible case details, timeline, assignments, and authorizations |
+| PATCH | `/v1/cases/{caseId}/status` | Change status with a mandatory reason and valid transition |
+| POST | `/v1/cases/{caseId}/assignments` | Assign an active investigator in the same organization |
+| DELETE | `/v1/cases/{caseId}/assignments/{assignmentId}` | Release an active assignment |
+| POST | `/v1/cases/{caseId}/authorizations` | Create a pending sensitive-request authorization |
+| POST | `/v1/authorizations/{authorizationId}/decision` | Independently approve or reject a request with a reason |
 
-The case API is intentionally narrow. Device management, evidence uploads, evidence retrieval, approvals, operator submissions, notifications, and administrative provisioning are not implemented.
+The API implements case management and an independent authorization decision workflow. Evidence uploads/retrieval, operator request submission, notifications, and administrative provisioning are not implemented. An authorization decision does not contact an operator or trigger disclosure.
 
 ## Local setup
 
 1. Provision PostgreSQL and the restricted `iptirs_app` role using [DATABASE.md](DATABASE.md).
-2. Apply `db/migrations/0001_initial.sql` as the migration owner.
+2. Apply migrations `0001_initial.sql`, `0002_case_workflow.sql`, and `0003_authorization_decisions.sql` in order as the migration owner.
 3. Configure a test OIDC provider or institutional identity provider that issues signed JWT access tokens with a stable `sub`, the expected issuer, and the configured audience.
 4. Provision the corresponding `users` and `memberships` records through an administrator-controlled process. Do not add self-service role assignment.
 5. Set environment variables in the server process only:
@@ -73,6 +79,7 @@ Allowed categories are `phone_theft`, `device_loss`, and `institutional_asset_lo
 - The in-process rate limiter is not distributed. Production multi-instance deployments require a shared rate-limit store or an upstream gateway policy.
 - Audit records currently receive per-event SHA-256 digests. This is not a chained or externally anchored audit log; independent verification and protected checkpoints remain required.
 - The API does not upload, scan, or serve evidence files. Do not enable evidence workflows until private object storage, malware scanning, encryption, access logging, retention, and legal-hold controls are implemented.
+- Authorization decisions require an active `authorization_approver` or organization administrator role; the requester cannot decide their own request. The application role has no direct UPDATE grant on authorization records.
 - The API does not send operator requests, query telecom systems, retrieve subscriber information, or locate devices.
 - The React interface is not yet connected to this API. The browser prototype continues to display synthetic records.
 - This API foundation has not undergone an independent penetration test or institutional security review. Do not use production personal or investigative data.
