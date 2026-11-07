@@ -172,6 +172,9 @@ BEGIN
   IF has_table_privilege(current_user, 'authorization_records', 'UPDATE') THEN
     RAISE EXCEPTION 'Application role must not approve or mutate authorization records directly';
   END IF;
+  IF (SELECT rolbypassrls FROM pg_roles WHERE rolname = 'iptirs_auth_workflow') THEN
+    RAISE EXCEPTION 'Authorization workflow role must not bypass row-level security';
+  END IF;
   IF has_table_privilege(current_user, 'device_records', 'UPDATE') THEN
     RAISE EXCEPTION 'Application role must not rewrite device identity records';
   END IF;
