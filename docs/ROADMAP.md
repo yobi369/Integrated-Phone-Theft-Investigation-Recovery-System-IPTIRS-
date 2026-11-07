@@ -26,8 +26,8 @@ Deliver in reviewable phases. Do not claim production readiness, legal complianc
 - [x] Require a reason for every status change and assignment action.
 - [x] Record assignment and status history in append-only case events and audit records.
 - [x] Test reporter restrictions, cross-tenant denial, assignment lifecycle, and invalid status transitions.
-- [ ] Connect the React case workspace to the authenticated API.
-- [ ] Add investigator-facing assignment, status, and timeline controls to the browser workspace.
+- [x] Connect the React case workspace to the authenticated API using OIDC authorization code + PKCE.
+- [x] Add investigator-facing case creation, status, assignment, and timeline controls to the browser workspace.
 - [ ] Implement citizen intake, report reference numbers, duplicate review, and permitted public status updates.
 
 **Exit gate:** investigators can complete a synthetic case workflow through the browser interface using a configured identity provider. Backend API workflow tests currently pass; browser integration and real identity configuration remain outstanding.
@@ -63,8 +63,8 @@ Deliver in reviewable phases. Do not claim production readiness, legal complianc
 
 - [ ] Configure an institutional OIDC identity provider, SSO, and MFA.
 - [ ] Implement controlled user provisioning, invitations, suspension, revocation, and access reviews.
-- [ ] Add role administration and separation-of-duties controls.
-- [ ] Connect the browser application to the authenticated API.
+- [x] Add organization-admin member listing, role/status changes, self-change protection, last-admin protection, and audit events.\n- [ ] Add invitation delivery, identity lifecycle synchronization, and periodic access review.
+- [x] Connect the browser application to the authenticated API using configured OIDC PKCE.
 - [ ] Add organization-level configuration, audit review, and administrative reporting.
 - [ ] Validate accessibility and privileged-user workflows.
 
