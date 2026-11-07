@@ -41,6 +41,7 @@ CREATE POLICY memberships_staff_read ON memberships
 CREATE POLICY case_assignments_case_select ON case_assignments
   FOR SELECT USING (
     organization_id = nullif(current_setting('app.current_organization_id', true), '')::uuid
+    AND current_setting('app.current_role', true) IN ('organization_admin', 'investigator', 'operator_liaison', 'auditor')
     AND EXISTS (
       SELECT 1 FROM cases c
       WHERE c.organization_id = case_assignments.organization_id
