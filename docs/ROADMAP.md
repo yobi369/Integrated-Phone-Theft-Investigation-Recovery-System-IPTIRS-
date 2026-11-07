@@ -25,7 +25,9 @@ Deliver in reviewable phases. Do not claim production readiness, legal complianc
 - [ ] Configure a real institutional identity provider, SSO, MFA, and account lifecycle.
 - [ ] Connect the React application to the deployed API and authenticated sign-in flow.
 - [ ] Deploy and operate the PostgreSQL service using production secrets and backups.
-- [ ] Implement citizen intake, reference numbers, duplicate review, and case workflows.
+- [x] Implement case detail retrieval, role-checked investigator assignment/release, status transitions with mandatory reasons, chronological timeline events, and audit records.
+- [ ] Connect the browser case workspace to the authenticated API and build investigator assignment/status controls.
+- [ ] Implement citizen intake, reference numbers, duplicate review, and public-facing case status workflows.
 - [ ] Implement encrypted evidence object storage, malware scanning, provenance, and access history.
 - [ ] Implement an independent approval workflow for sensitive operator requests.
 - [x] Generate a per-event SHA-256 audit digest for case creation.
