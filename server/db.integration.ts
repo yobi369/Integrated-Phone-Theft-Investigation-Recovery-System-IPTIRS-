@@ -18,7 +18,8 @@ const app = await buildApp({
     const subjects: Record<string, string> = {
       'alpha-investigator': 'test|alpha',
       'alpha-reporter': 'test|alpha-reporter',
-      'alpha-auditor': 'test|alpha-auditor'
+      'alpha-auditor': 'test|alpha-auditor',
+      'alpha-investigator-2': 'test|alpha-investigator-2'
     };
     const subject = subjects[token];
     if (!subject) throw new Error('Invalid synthetic test token');
@@ -82,6 +83,130 @@ test('case creation writes the case, event, and auditable digest atomically', as
   assert.ok(audit);
   assert.equal(typeof audit.request_id, 'string');
   assert.match(audit.event_hash, /^[0-9a-f]{64}$/);
+});
+
+
+test('case details, status workflow, assignment lifecycle, and timeline are auditable', async () => {
+  const headers = {
+    authorization: 'Bearer alpha-investigator',
+    'x-organization-id': organizationId
+  };
+  const create = await app.inject({
+    method: 'POST',
+    url: '/v1/cases',
+    headers,
+    payload: {
+      category: 'phone_theft',
+      priority: 'high',
+      summary: 'Synthetic workflow case for case-management acceptance testing.'
+    }
+  });
+  assert.equal(create.statusCode, 201);
+  const caseId = create.json().data.id as string;
+
+  const initialDetail = await app.inject({ method: 'GET', url: `/v1/cases/${caseId}`, headers });
+  assert.equal(initialDetail.statusCode, 200);
+  assert.equal(initialDetail.json().data.status, 'submitted');
+  assert.ok(initialDetail.json().data.timeline.some((event: { event_type: string }) => event.event_type === 'case_created'));
+
+  const triage = await app.inject({
+    method: 'PATCH',
+    url: `/v1/cases/${caseId}/status`,
+    headers,
+    payload: { status: 'under_review', reason: 'Initial triage completed by the assigned investigator.' }
+  });
+  assert.equal(triage.statusCode, 200);
+  assert.equal(triage.json().data.status, 'under_review');
+
+  const invalidTransition = await app.inject({
+    method: 'PATCH',
+    url: `/v1/cases/${caseId}/status`,
+    headers,
+    payload: { status: 'recovered', reason: 'This transition must not skip acceptance and investigation.' }
+  });
+  assert.equal(invalidTransition.statusCode, 409);
+
+  const accepted = await app.inject({
+    method: 'PATCH',
+    url: `/v1/cases/${caseId}/status`,
+    headers,
+    payload: { status: 'accepted', reason: 'The report passed the initial case acceptance review.' }
+  });
+  assert.equal(accepted.statusCode, 200);
+
+  const started = await app.inject({
+    method: 'PATCH',
+    url: `/v1/cases/${caseId}/status`,
+    headers,
+    payload: { status: 'in_progress', reason: 'Investigation work has formally started.' }
+  });
+  assert.equal(started.statusCode, 200);
+
+  const assignment = await app.inject({
+    method: 'POST',
+    url: `/v1/cases/${caseId}/assignments`,
+    headers,
+    payload: {
+      assigneeUserId: '20000000-0000-4000-8000-000000000005',
+      reason: 'Assign a second synthetic investigator for independent review.'
+    }
+  });
+  assert.equal(assignment.statusCode, 201);
+  const assignmentId = assignment.json().data.id as string;
+
+  const released = await app.inject({
+    method: 'DELETE',
+    url: `/v1/cases/${caseId}/assignments/${assignmentId}`,
+    headers
+  });
+  assert.equal(released.statusCode, 200);
+  assert.equal(released.json().data.status, 'released');
+
+  const detail = await app.inject({ method: 'GET', url: `/v1/cases/${caseId}`, headers });
+  assert.equal(detail.statusCode, 200);
+  assert.equal(detail.json().data.status, 'in_progress');
+  assert.equal(detail.json().data.assignments.length, 1);
+  assert.equal(detail.json().data.assignments[0].status, 'released');
+  const eventTypes = detail.json().data.timeline.map((event: { event_type: string }) => event.event_type);
+  assert.ok(eventTypes.includes('status_changed'));
+  assert.ok(eventTypes.includes('case_assigned'));
+  assert.ok(eventTypes.includes('case_assignment_released'));
+
+  const audit = await withTenantContext(pool, 'test|alpha-auditor', organizationId, async (client) => {
+    const result = await client.query(
+      "SELECT action FROM audit_events WHERE target_id = $1 AND action IN ('case.status_changed', 'case.assigned', 'case.assignment_released')",
+      [caseId]
+    );
+    return result.rows.map((row: { action: string }) => row.action);
+  });
+  assert.ok(audit.includes('case.status_changed'));
+  assert.ok(audit.includes('case.assigned'));
+  assert.ok(audit.includes('case.assignment_released'));
+});
+
+test('reporters cannot change case status or create investigator assignments', async () => {
+  const headers = {
+    authorization: 'Bearer alpha-reporter',
+    'x-organization-id': organizationId
+  };
+  const status = await app.inject({
+    method: 'PATCH',
+    url: '/v1/cases/30000000-0000-4000-8000-000000000003/status',
+    headers,
+    payload: { status: 'under_review', reason: 'Reporter should not change operational case status.' }
+  });
+  assert.equal(status.statusCode, 403);
+
+  const assignment = await app.inject({
+    method: 'POST',
+    url: '/v1/cases/30000000-0000-4000-8000-000000000003/assignments',
+    headers,
+    payload: {
+      assigneeUserId: '20000000-0000-4000-8000-000000000005',
+      reason: 'Reporter must not assign an investigator to this case.'
+    }
+  });
+  assert.equal(assignment.statusCode, 403);
 });
 
 test('reporter can only list their own cases', async () => {
