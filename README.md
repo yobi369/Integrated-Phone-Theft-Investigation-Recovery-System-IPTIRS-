@@ -33,7 +33,7 @@ IPTIRS is being developed as a secure workflow platform to help citizens, author
 
 ## Current prototype
 
-The React + TypeScript + Vite interface remains a synthetic-data prototype. Its views are labeled as demo content; tracking, reporting, and configuration screens do not connect to operational systems. The separate API is not yet connected to this browser interface.
+The React + TypeScript + Vite browser workspace now supports OIDC authorization-code + PKCE sign-in, organization membership verification, API-backed case listing/creation/detail, investigator assignment/release, status transitions, and an organization-admin membership screen. Tracking and forensic intelligence functions remain unavailable; no external operator or government service is connected.
 
 ## Product development principles
 
