@@ -2,7 +2,6 @@ import { createHash, randomUUID } from 'node:crypto';
 import net from 'node:net';
 import { Readable } from 'node:stream';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
-import multipart from '@fastify/multipart';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { fileTypeFromBuffer } from 'file-type';
 import type { Pool } from 'pg';
@@ -79,11 +78,6 @@ function requireIdentity(request: FastifyRequest): string {
 }
 
 export async function registerEvidenceRoutes(app: FastifyInstance, dependencies: EvidenceDependencies): Promise<void> {
-  await app.register(multipart, {
-    limits: { fileSize: MAX_EVIDENCE_BYTES, files: 1, fields: 5, parts: 6 },
-    throwFileSizeLimit: true
-  });
-
   app.post('/v1/cases/:caseId/evidence', async (request, reply) => {
     const config = evidenceConfiguration();
     if (!config) return reply.code(503).send(error('evidence_unavailable', 'Evidence storage and malware scanning are not configured.'));
