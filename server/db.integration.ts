@@ -19,7 +19,9 @@ const app = await buildApp({
       'alpha-investigator': 'test|alpha',
       'alpha-reporter': 'test|alpha-reporter',
       'alpha-auditor': 'test|alpha-auditor',
-      'alpha-investigator-2': 'test|alpha-investigator-2'
+      'alpha-investigator-2': 'test|alpha-investigator-2',
+      'alpha-approver': 'test|alpha-approver',
+      'alpha-admin': 'test|alpha-admin'
     };
     const subject = subjects[token];
     if (!subject) throw new Error('Invalid synthetic test token');
@@ -85,6 +87,117 @@ test('case creation writes the case, event, and auditable digest atomically', as
   assert.match(audit.event_hash, /^[0-9a-f]{64}$/);
 });
 
+
+
+test('authorization requests require independent approval and record approval and rejection decisions', async () => {
+  const investigatorHeaders = {
+    authorization: 'Bearer alpha-investigator',
+    'x-organization-id': organizationId
+  };
+  const approverHeaders = {
+    authorization: 'Bearer alpha-approver',
+    'x-organization-id': organizationId
+  };
+  const adminHeaders = {
+    authorization: 'Bearer alpha-admin',
+    'x-organization-id': organizationId
+  };
+
+  const caseResponse = await app.inject({
+    method: 'POST',
+    url: '/v1/cases',
+    headers: investigatorHeaders,
+    payload: {
+      category: 'phone_theft',
+      priority: 'normal',
+      summary: 'Synthetic authorization workflow test case for approval boundaries.'
+    }
+  });
+  assert.equal(caseResponse.statusCode, 201);
+  const caseId = caseResponse.json().data.id as string;
+
+  const createRequest = async (headers: Record<string, string>, purpose: string) => app.inject({
+    method: 'POST',
+    url: `/v1/cases/${caseId}/authorizations`,
+    headers,
+    payload: {
+      purpose,
+      requestedAction: 'operator_status_check',
+      legalAuthorityReference: 'SYNTHETIC-TEST-AUTHORITY',
+      scope: { testOnly: true, fields: ['request_status'] },
+      validUntil: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    }
+  });
+
+  const approvalRequest = await createRequest(
+    investigatorHeaders,
+    'Synthetic request requiring independent authorization approval.'
+  );
+  assert.equal(approvalRequest.statusCode, 201);
+  const approvalId = approvalRequest.json().data.id as string;
+  assert.equal(approvalRequest.json().data.status, 'pending_approval');
+
+  const requesterDecision = await app.inject({
+    method: 'POST',
+    url: `/v1/authorizations/${approvalId}/decision`,
+    headers: investigatorHeaders,
+    payload: { decision: 'approved', reason: 'Requester cannot approve their own request.' }
+  });
+  assert.equal(requesterDecision.statusCode, 403);
+
+  const approved = await app.inject({
+    method: 'POST',
+    url: `/v1/authorizations/${approvalId}/decision`,
+    headers: approverHeaders,
+    payload: { decision: 'approved', reason: 'Independent approver reviewed the synthetic request.' }
+  });
+  assert.equal(approved.statusCode, 200);
+  assert.equal(approved.json().data.status, 'approved');
+  assert.equal(approved.json().data.decided_by_user_id, '20000000-0000-4000-8000-000000000006');
+
+  const selfApprovalRequest = await createRequest(
+    adminHeaders,
+    'Synthetic administrator request to verify self-approval prevention.'
+  );
+  assert.equal(selfApprovalRequest.statusCode, 201);
+  const selfApprovalId = selfApprovalRequest.json().data.id as string;
+
+  const selfDecision = await app.inject({
+    method: 'POST',
+    url: `/v1/authorizations/${selfApprovalId}/decision`,
+    headers: adminHeaders,
+    payload: { decision: 'approved', reason: 'The requester must not approve their own request.' }
+  });
+  assert.equal(selfDecision.statusCode, 403);
+
+  const rejected = await app.inject({
+    method: 'POST',
+    url: `/v1/authorizations/${selfApprovalId}/decision`,
+    headers: approverHeaders,
+    payload: { decision: 'rejected', reason: 'The synthetic request lacks sufficient scope justification.' }
+  });
+  assert.equal(rejected.statusCode, 200);
+  assert.equal(rejected.json().data.status, 'rejected');
+
+  const detail = await app.inject({ method: 'GET', url: `/v1/cases/${caseId}`, headers: investigatorHeaders });
+  assert.equal(detail.statusCode, 200);
+  assert.equal(detail.json().data.authorizations.length, 2);
+  const timelineTypes = detail.json().data.timeline.map((event: { event_type: string }) => event.event_type);
+  assert.ok(timelineTypes.includes('authorization_requested'));
+  assert.ok(timelineTypes.includes('authorization_approved'));
+  assert.ok(timelineTypes.includes('authorization_rejected'));
+
+  const audit = await withTenantContext(pool, 'test|alpha-auditor', organizationId, async (client) => {
+    const result = await client.query(
+      "SELECT action FROM audit_events WHERE target_id = $1 AND action IN ('authorization.requested', 'authorization.approved', 'authorization.rejected')",
+      [caseId]
+    );
+    return result.rows.map((row: { action: string }) => row.action);
+  });
+  assert.ok(audit.includes('authorization.requested'));
+  assert.ok(audit.includes('authorization.approved'));
+  assert.ok(audit.includes('authorization.rejected'));
+});
 
 test('case details, status workflow, assignment lifecycle, and timeline are auditable', async () => {
   const headers = {
