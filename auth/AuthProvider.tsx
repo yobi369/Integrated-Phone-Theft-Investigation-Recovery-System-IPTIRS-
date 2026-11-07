@@ -23,6 +23,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{
     silent_redirect_uri: `${window.location.origin}/auth/silent-renew`,
     response_type: 'code',
     scope: 'openid profile email',
+    extraQueryParams: { audience: 'iptirs-api' },
     automaticSilentRenew: true,
     monitorSession: false,
     loadUserInfo: false,
