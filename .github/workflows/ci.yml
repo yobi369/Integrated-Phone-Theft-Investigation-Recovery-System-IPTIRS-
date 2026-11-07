@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "product/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: TypeScript, build, and database security checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: iptirs_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d iptirs_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Install dependencies
+        run: npm install
+      - name: Summarize dependency audit findings
+        run: |
+          npm audit --json > /tmp/npm-audit.json || true
+          node -e 'const report = require("/tmp/npm-audit.json"); for (const [name, item] of Object.entries(report.vulnerabilities ?? {})) { console.log(name + ": " + item.severity + "; direct=" + item.isDirect + "; fix=" + JSON.stringify(item.fixAvailable)); for (const via of item.via ?? []) if (typeof via === "object") console.log("  " + (via.title ?? via.name) + ": " + (via.range ?? "")); }'
+      - name: Enforce dependency audit threshold
+        run: npm audit --audit-level=high
+      - name: Type-check
+        run: npm run typecheck
+      - name: API type-check and compile
+        run: npm run build:api
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Prepare restricted application database role
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d iptirs_test -v ON_ERROR_STOP=1 -c "CREATE ROLE iptirs_app LOGIN PASSWORD 'iptirs_test_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;"
+      - name: Apply initial database migration
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d iptirs_test -v ON_ERROR_STOP=1 -f db/migrations/0001_initial.sql
+          psql -h localhost -U postgres -d iptirs_test -v ON_ERROR_STOP=1 -f db/migrations/0002_case_workflow.sql
+          psql -h localhost -U postgres -d iptirs_test -v ON_ERROR_STOP=1 -f db/migrations/0003_authorization_decisions.sql
+          psql -h localhost -U postgres -d iptirs_test -v ON_ERROR_STOP=1 -f db/migrations/0004_evidence_workflow.sql
+          psql -h localhost -U postgres -d iptirs_test -v ON_ERROR_STOP=1 -f db/migrations/0005_membership_administration.sql
+      - name: Verify tenant isolation and immutable records
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d iptirs_test -v ON_ERROR_STOP=1 -f db/tests/seed-tenant-fixtures.sql
+          PGPASSWORD=iptirs_test_only psql -h localhost -U iptirs_app -d iptirs_test -v ON_ERROR_STOP=1 -f db/tests/tenant-isolation.sql
+      - name: Exercise authenticated API against PostgreSQL
+        env:
+          DATABASE_URL: postgresql://iptirs_app:iptirs_test_only@localhost:5432/iptirs_test
+        run: npm run test:db
