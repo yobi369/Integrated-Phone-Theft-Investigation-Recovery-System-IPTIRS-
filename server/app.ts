@@ -24,6 +24,13 @@ interface AppDependencies {
 }
 
 const errorResponse = (code: string, message: string) => ({ error: { code, message } });
+
+class CaseWorkflowConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CaseWorkflowConflictError';
+  }
+}
 const staffRoles = new Set(['organization_admin', 'investigator']);
 
 const statusTransitions: Record<string, string[]> = {
@@ -120,6 +127,9 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
       return reply.code(error.statusCode).send(
         errorResponse(error.statusCode === 401 ? 'unauthorized' : 'forbidden', error.message)
       );
+    }
+    if (error instanceof CaseWorkflowConflictError || (error as { code?: string }).code === '23514') {
+      return reply.code(409).send(errorResponse('workflow_conflict', 'The requested case workflow transition is not valid.'));
     }
     if ((error as { code?: string }).code === '23505') {
       return reply.code(409).send(errorResponse('conflict', 'The requested case assignment already exists.'));
@@ -269,7 +279,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
 
       const allowed = statusTransitions[String(current.status)] ?? [];
       if (!allowed.includes(body.data.status)) {
-        throw new RequestContextError(403, 'The requested case status transition is not permitted.');
+        throw new CaseWorkflowConflictError('The requested case status transition is not permitted.');
       }
 
       const result = await client.query(
