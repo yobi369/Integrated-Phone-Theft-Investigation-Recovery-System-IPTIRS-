@@ -28,6 +28,7 @@ Maintain independent development, test, staging, and production environments. Us
 - Use a dedicated PostgreSQL application role with no superuser or RLS-bypass privileges.
 - Configure the API with the institution's exact OIDC issuer, API audience, and trusted JWKS URL.
 - Provision users and organization memberships through an administrator-controlled process. The API currently has no account-provisioning UI.
+- The authorization decision function is owned by a non-login `iptirs_auth_workflow` role with `NOBYPASSRLS`; keep it non-login and do not grant membership in it to the application role. Its only purpose is to perform a validated authorization decision under RLS.
 - Require institutional MFA and privileged-role access reviews before pilot use.
 
 ## Database operations
