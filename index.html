@@ -1,13 +1,12 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IPTIRS Dashboard</title>
+    <meta name="description" content="IPTIRS development prototype for device-theft case coordination and evidence workflow design." />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>IPTIRS — Development Prototype</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -26,69 +25,18 @@
     </script>
     <style>
       @media print {
-        @page {
-          margin: 1cm;
-          size: A4;
-        }
-        body {
-          background-color: white !important;
-          color: black !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        #root, main, .flex, .flex-col {
-          display: block !important;
-          height: auto !important;
-          overflow: visible !important;
-        }
-        /* Hide UI chrome */
-        nav, header, aside, .sidebar-container, ::-webkit-scrollbar {
-          display: none !important;
-        }
-        /* Transform Dark Mode to Paper Report */
-        .bg-brand-dark, .bg-brand-secondary {
-          background-color: white !important;
-          border: 1px solid #ddd !important;
-          color: black !important;
-          box-shadow: none !important;
-          margin-bottom: 20px !important;
-        }
-        .text-white, .text-brand-text, .text-brand-accent {
-          color: black !important;
-        }
-        .text-brand-text-secondary {
-          color: #555 !important;
-        }
-        /* Specific adjustments for legibility */
-        table {
-          width: 100% !important;
-          border-collapse: collapse !important;
-        }
-        th, td {
-          border: 1px solid #ccc !important;
-          color: black !important;
-        }
-        /* Hide buttons (Export buttons themselves) */
-        button, .no-print {
-          display: none !important;
-        }
-        /* Ensure charts are visible */
-        svg {
-          filter: drop-shadow(0 0 0 black);
-        }
-        /* Add a header for the report */
         body::before {
-          content: "KENYA POLICE SERVICE - OFFICIAL ASSET RECOVERY REPORT";
+          content: "IPTIRS — DEVELOPMENT REPORT (SAMPLE DATA ONLY)";
           display: block;
           text-align: center;
           font-weight: bold;
-          font-size: 18pt;
+          font-size: 16pt;
           margin-bottom: 20px;
           border-bottom: 2px solid black;
           padding-bottom: 10px;
         }
         body::after {
-          content: "CONFIDENTIAL / INTERNAL USE ONLY";
+          content: "DEMO ONLY — NOT AN OFFICIAL OR OPERATIONAL RECORD";
           display: block;
           text-align: center;
           font-size: 10pt;
@@ -97,52 +45,36 @@
           border-top: 1px solid #ccc;
           padding-top: 10px;
         }
+        button, .no-print { display: none !important; }
       }
-
-      /* PDF Export Styles (Applied during html2pdf generation) */
       .pdf-export-mode {
-          background-color: white !important;
-          color: black !important;
-          padding: 20px !important;
+        background-color: white !important;
+        color: black !important;
+        padding: 20px !important;
       }
       .pdf-export-mode .bg-brand-secondary,
       .pdf-export-mode .bg-brand-dark {
-          background-color: white !important;
-          color: black !important;
-          border: 1px solid #ccc !important;
-          box-shadow: none !important;
+        background-color: white !important;
+        color: black !important;
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
       }
       .pdf-export-mode .text-white { color: black !important; }
       .pdf-export-mode .text-brand-text { color: #222 !important; }
       .pdf-export-mode .text-brand-text-secondary { color: #555 !important; }
       .pdf-export-mode .text-brand-accent { color: #0044cc !important; }
       .pdf-export-mode button { display: none !important; }
-      
-      /* Header injection for PDF */
-      .pdf-watermark {
-          display: none;
-      }
+      .pdf-watermark { display: none; }
       .pdf-export-mode .pdf-watermark {
-          display: block !important;
-          text-align: center;
-          margin-bottom: 20px;
-          border-bottom: 2px solid #000;
-          padding-bottom: 10px;
+        display: block !important;
+        text-align: center;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #000;
+        padding-bottom: 10px;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "recharts": "https://aistudiocdn.com/recharts@^3.2.1",
-    "@google/genai": "https://esm.sh/@google/genai@^1.33.0"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
-</head>
+    <link rel="stylesheet" href="/index.css">
+  </head>
   <body class="bg-brand-dark text-brand-text">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
