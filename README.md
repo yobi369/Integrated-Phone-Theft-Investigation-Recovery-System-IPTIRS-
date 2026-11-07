@@ -68,7 +68,7 @@ The API now implements authenticated organization context, case listing/creation
 
 ## API foundation
 
-A separate Node.js API is available in `server/`. It verifies JWT access tokens against a configured OIDC issuer/JWKS, checks active organization membership, and exposes case management, assignment, status-transition, timeline, and independent authorization decision endpoints. See [API setup and limits](docs/API.md) and the [case workflow API contract](docs/API_CASE_WORKFLOW.md).
+A separate Node.js API is available in `server/`. It verifies JWT access tokens against a configured OIDC issuer/JWKS, checks active organization membership, and exposes case management, assignment, status-transition, timeline, and independent authorization decision endpoints. See [API setup and limits](docs/API.md), the [browser OIDC setup guide](docs/FRONTEND_AUTH_SETUP.md), and the [case workflow API contract](docs/API_CASE_WORKFLOW.md).
 
 ## Database foundation
 
