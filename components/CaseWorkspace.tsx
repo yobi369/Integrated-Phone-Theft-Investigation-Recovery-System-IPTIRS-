@@ -8,6 +8,7 @@ interface CaseRow {
   active_assignment_count: number;
 }
 interface Investigator { userId: string; displayName: string; role: string; }
+interface EvidenceRecord { id: string; sha256: string; media_type: string; byte_size: number; evidence_kind: string; verification_status: string; created_at: string; }
 interface CaseDetail extends CaseRow {
   assignments: Array<{ id: string; assigned_to_user_id: string; assignment_reason: string; status: string; assigned_at: string; released_at?: string }>;
   timeline: Array<{ id: string; event_type: string; description: string; occurred_at: string; actor_user_id: string }>;
@@ -26,6 +27,10 @@ const date = (value: string) => new Date(value).toLocaleString();
 const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, role, currentUserId }) => {
   const [cases, setCases] = useState<CaseRow[]>([]);
   const [investigators, setInvestigators] = useState<Investigator[]>([]);
+  const [evidence, setEvidence] = useState<EvidenceRecord[]>([]);
+  const [evidenceKind, setEvidenceKind] = useState('document');
+  const [evidencePurpose, setEvidencePurpose] = useState('');
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +66,13 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
     finally { setLoading(false); }
   }, [request, selectedId]);
 
+  const loadEvidence = useCallback(async (caseId: string) => {
+    try {
+      const result = await request<{data: EvidenceRecord[]}>(`/v1/cases/${caseId}/evidence`);
+      setEvidence(result.data);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not load evidence records.'); }
+  }, [request]);
+
   const loadDetail = useCallback(async (caseId: string) => {
     setError('');
     try {
@@ -77,7 +89,7 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
       .then(result => setInvestigators(result.data))
       .catch(err => setError(err instanceof Error ? err.message : 'Could not load investigator directory.'));
   }, [request, staff]);
-  useEffect(() => { if (selectedId) void loadDetail(selectedId); else setDetail(null); }, [selectedId, loadDetail]);
+  useEffect(() => { if (selectedId) { void loadDetail(selectedId); void loadEvidence(selectedId); } else { setDetail(null); setEvidence([]); } }, [selectedId, loadDetail, loadEvidence]);
 
   const run = async (operation: () => Promise<unknown>, success: string) => {
     setBusy(true); setError(''); setNotice('');
@@ -112,6 +124,61 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
       method: 'POST', body: JSON.stringify({ assigneeUserId: assignee, reason: assignmentReason })
     }), 'Investigator assignment recorded.');
     setAssignee(''); setAssignmentReason('');
+  };
+
+  const uploadEvidence = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedId || !evidenceFile) return;
+    if (evidenceFile.size < 1 || evidenceFile.size > 50 * 1024 * 1024) {
+      setError('Evidence file must be between 1 byte and 50 MiB.');
+      return;
+    }
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const form = new FormData();
+      form.append('evidenceKind', evidenceKind);
+      form.append('purpose', evidencePurpose);
+      form.append('file', evidenceFile);
+      const response = await fetch(new URL(`/v1/cases/${selectedId}/evidence`, apiBaseUrl), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'X-Organization-Id': organizationId },
+        body: form,
+        credentials: 'omit'
+      });
+      const payload = await response.json().catch(() => ({})) as { error?: { message?: string } };
+      if (!response.ok) throw new ApiError(response.status, payload.error?.message ?? 'Evidence upload failed.');
+      setEvidencePurpose(''); setEvidenceFile(null);
+      const input = document.getElementById('iptirs-evidence-file') as HTMLInputElement | null;
+      if (input) input.value = '';
+      setNotice('Evidence uploaded, scanned and recorded.');
+      await loadEvidence(selectedId);
+      await loadDetail(selectedId);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Evidence upload failed.'); }
+    finally { setBusy(false); }
+  };
+
+  const downloadEvidence = async (item: EvidenceRecord) => {
+    const purpose = window.prompt('Enter the purpose for accessing this evidence (minimum 5 characters):');
+    if (!purpose || purpose.trim().length < 5 || !selectedId) return;
+    setBusy(true); setError('');
+    try {
+      const response = await fetch(new URL(`/v1/evidence/${item.id}/download?purpose=${encodeURIComponent(purpose.trim())}`, apiBaseUrl), {
+        headers: { Authorization: `Bearer ${token}`, 'X-Organization-Id': organizationId },
+        credentials: 'omit'
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new ApiError(response.status, payload.error?.message ?? 'Evidence download failed.');
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl; link.download = `evidence-${item.id}`;
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
+      setNotice('Evidence retrieved after integrity verification. Access was recorded.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Evidence download failed.'); }
+    finally { setBusy(false); }
   };
 
   const createAuthorization = (event: React.FormEvent) => {
@@ -176,6 +243,18 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
             {staff && <form onSubmit={assignCase} className="mt-4 grid gap-3 rounded border border-brand-light p-4 md:grid-cols-2"><div className="md:col-span-2"><h3 className="text-sm font-bold text-white">Assign investigator</h3><p className="mt-1 text-xs text-brand-text-secondary">Enter the UUID of an active investigator or organization administrator in this organization.</p></div><label className="text-xs text-brand-text-secondary">Investigator<select required value={assignee} onChange={e => setAssignee(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white"><option value="">Choose an active investigator</option>{investigators.map(person=><option key={person.userId} value={person.userId}>{person.displayName} · {person.role.replaceAll('_',' ')}</option>)}</select></label><label className="text-xs text-brand-text-secondary">Reason<input required minLength={5} maxLength={500} value={assignmentReason} onChange={e => setAssignmentReason(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" placeholder="Assignment rationale" /></label><div className="md:col-span-2"><button disabled={busy} className="rounded border border-brand-accent px-3 py-2 text-xs font-bold text-brand-accent disabled:opacity-50">Record assignment</button></div></form>}
             <div className="mt-5"><h3 className="mb-3 font-bold text-white">Assignment history</h3>{detail.assignments.length === 0 ? <p className="text-xs text-brand-text-secondary">No assignments recorded.</p> : <ul className="space-y-2">{detail.assignments.map(item => <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-brand-light p-3 text-xs"><div><p className="font-mono text-brand-accent">{item.assigned_to_user_id}</p><p className="mt-1 text-brand-text-secondary">{item.assignment_reason} · {label(item.status)}</p></div>{staff && item.status === 'active' && <button onClick={() => releaseAssignment(item.id)} disabled={busy} className="text-red-300 hover:text-red-200">Release</button>}</li>)}</ul>}</div>
             <div className="mt-5"><h3 className="mb-3 font-bold text-white">Case timeline</h3>{detail.timeline.length === 0 ? <p className="text-xs text-brand-text-secondary">No timeline events.</p> : <ol className="space-y-3 border-l border-brand-light pl-4">{detail.timeline.map(event => <li key={event.id} className="relative"><span className="absolute -left-[21px] top-1 h-2 w-2 rounded-full bg-brand-accent" /><p className="text-xs font-bold uppercase text-brand-accent">{label(event.event_type)}</p><p className="mt-1 text-sm text-white">{event.description}</p><p className="mt-1 text-[11px] text-brand-text-secondary">{date(event.occurred_at)} · Actor {event.actor_user_id}</p></li>)}</ol>}</div>
+            <div className="mt-5"><h3 className="mb-3 font-bold text-white">Evidence records</h3>
+              {staff && <form onSubmit={uploadEvidence} className="mb-4 grid gap-3 rounded border border-brand-light bg-brand-dark/40 p-4">
+                <p className="text-xs text-brand-text-secondary">Uploads are accepted only when private object storage and malware scanning are configured. Supported formats: PDF, JPEG, PNG and WebP; maximum 50 MiB.</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="text-xs text-brand-text-secondary">Evidence type<select value={evidenceKind} onChange={e=>setEvidenceKind(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white"><option value="proof_of_ownership">Proof of ownership</option><option value="purchase_record">Purchase record</option><option value="police_reference">Police reference</option><option value="photo">Photo</option><option value="document">Document</option><option value="other">Other</option></select></label>
+                  <label className="text-xs text-brand-text-secondary">File<input id="iptirs-evidence-file" required type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={e=>setEvidenceFile(e.target.files?.[0]||null)} className="mt-1 block w-full text-xs text-white file:mr-3 file:rounded file:border-0 file:bg-brand-light file:px-3 file:py-2 file:text-xs file:text-white" /></label>
+                </div>
+                <label className="text-xs text-brand-text-secondary">Purpose<textarea required minLength={5} maxLength={500} rows={2} value={evidencePurpose} onChange={e=>setEvidencePurpose(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" placeholder="Explain why this evidence is being added to the case..." /></label>
+                <button disabled={busy || !evidenceFile} className="w-fit rounded border border-brand-accent px-3 py-2 text-xs font-bold text-brand-accent disabled:opacity-50">Upload and scan evidence</button>
+              </form>}
+              {evidence.length===0 ? <p className="text-xs text-brand-text-secondary">No evidence metadata is recorded for this case.</p> : <ul className="space-y-2">{evidence.map(item=><li key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded border border-brand-light p-3 text-xs"><div><p className="font-semibold text-white">{label(item.evidence_kind)} · {label(item.verification_status)}</p><p className="mt-1 text-brand-text-secondary">{item.media_type} · {(Number(item.byte_size)/1024).toFixed(1)} KiB · {date(item.created_at)}</p><p className="mt-1 break-all font-mono text-[10px] text-brand-text-secondary">SHA-256 {item.sha256}</p></div><button type="button" disabled={busy || item.verification_status!=='available'} onClick={()=>void downloadEvidence(item)} className="rounded border border-brand-accent px-3 py-2 text-xs font-bold text-brand-accent disabled:opacity-40">Download with purpose</button></li>)}</ul>}
+            </div>
             <div className="mt-5"><h3 className="mb-3 font-bold text-white">Authorization requests</h3>
               {staff && <form onSubmit={createAuthorization} className="mb-4 space-y-3 rounded border border-brand-light bg-brand-dark/40 p-4">
                 <p className="text-xs text-brand-text-secondary">Create a purpose-limited request for independent review. IPTIRS does not submit requests to telecom operators.</p>
