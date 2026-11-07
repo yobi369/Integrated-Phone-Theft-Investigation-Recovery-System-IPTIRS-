@@ -7,10 +7,11 @@ interface CaseRow {
   priority: string; summary: string; created_at: string; updated_at: string;
   active_assignment_count: number;
 }
+interface Investigator { userId: string; displayName: string; role: string; }
 interface CaseDetail extends CaseRow {
   assignments: Array<{ id: string; assigned_to_user_id: string; assignment_reason: string; status: string; assigned_at: string; released_at?: string }>;
   timeline: Array<{ id: string; event_type: string; description: string; occurred_at: string; actor_user_id: string }>;
-  authorizations: Array<{ id: string; requested_action: string; purpose: string; status: string; valid_until: string }>;
+  authorizations: Array<{ id: string; requested_action: string; purpose: string; status: string; valid_until: string; requested_by_user_id: string; decision_reason?: string; decided_by_user_id?: string; decided_at?: string }>;
 }
 interface Props { apiBaseUrl: string; token: string; organizationId: string; role: string; }
 const statuses: CaseStatus[] = ['submitted','under_review','accepted','in_progress','pending_external_response','recovered','closed','rejected'];
@@ -24,6 +25,7 @@ const date = (value: string) => new Date(value).toLocaleString();
 
 const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, role }) => {
   const [cases, setCases] = useState<CaseRow[]>([]);
+  const [investigators, setInvestigators] = useState<Investigator[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,6 +40,12 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
   const [statusReason, setStatusReason] = useState('');
   const [assignee, setAssignee] = useState('');
   const [assignmentReason, setAssignmentReason] = useState('');
+  const [authPurpose, setAuthPurpose] = useState('');
+  const [authAction, setAuthAction] = useState('operator_status_check');
+  const [authReference, setAuthReference] = useState('');
+  const [authScope, setAuthScope] = useState('{"testOnly":true}');
+  const [authExpiry, setAuthExpiry] = useState('');
+  const [decisionReasons, setDecisionReasons] = useState<Record<string,string>>({});
   const staff = role === 'organization_admin' || role === 'investigator';
 
   const request = useCallback(<T,>(path: string, init?: RequestInit) =>
@@ -63,6 +71,12 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
   }, [request]);
 
   useEffect(() => { void loadCases(); }, [loadCases]);
+  useEffect(() => {
+    if (!staff) return;
+    void request<{data: Investigator[]}>('/v1/organization/investigators')
+      .then(result => setInvestigators(result.data))
+      .catch(err => setError(err instanceof Error ? err.message : 'Could not load investigator directory.'));
+  }, [request, staff]);
   useEffect(() => { if (selectedId) void loadDetail(selectedId); else setDetail(null); }, [selectedId, loadDetail]);
 
   const run = async (operation: () => Promise<unknown>, success: string) => {
@@ -98,6 +112,25 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
       method: 'POST', body: JSON.stringify({ assigneeUserId: assignee, reason: assignmentReason })
     }), 'Investigator assignment recorded.');
     setAssignee(''); setAssignmentReason('');
+  };
+
+  const createAuthorization = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedId) return;
+    let scope: Record<string, unknown>;
+    try { const parsed: unknown = JSON.parse(authScope); if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error(); scope = parsed as Record<string, unknown>; }
+    catch { setError('Authorization scope must be a valid JSON object.'); return; }
+    const validUntil = new Date(authExpiry);
+    if (!authExpiry || !Number.isFinite(validUntil.getTime()) || validUntil.getTime() <= Date.now()) { setError('Choose a future expiry time.'); return; }
+    void run(() => request(`/v1/cases/${selectedId}/authorizations`, { method: 'POST', body: JSON.stringify({ purpose: authPurpose, requestedAction: authAction, legalAuthorityReference: authReference, scope, validUntil: validUntil.toISOString() }) }), 'Authorization request submitted for independent review.');
+    setAuthPurpose(''); setAuthReference('');
+  };
+
+  const decideAuthorization = (authorizationId: string, decision: 'approved'|'rejected') => {
+    const reason = decisionReasons[authorizationId] || '';
+    if (!reason.trim()) { setError('A decision reason is required.'); return; }
+    void run(() => request(`/v1/authorizations/${authorizationId}/decision`, { method: 'POST', body: JSON.stringify({ decision, reason }) }), `Authorization ${decision}.`);
+    setDecisionReasons(current => ({ ...current, [authorizationId]: '' }));
   };
 
   const releaseAssignment = (assignmentId: string) => {
@@ -140,10 +173,27 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-brand-light pb-4"><div><p className="font-mono text-sm text-brand-accent">{detail.case_reference}</p><h2 className="mt-1 text-xl font-bold text-white">{label(detail.category)}</h2><p className="mt-2 text-sm text-brand-text-secondary">{detail.summary}</p></div><span className="rounded border border-brand-light px-3 py-1 text-xs uppercase text-white">{label(detail.status)}</span></div>
             <div className="grid gap-3 py-4 text-sm sm:grid-cols-3"><div><p className="text-xs text-brand-text-secondary">Priority</p><p className="mt-1 text-white">{label(detail.priority)}</p></div><div><p className="text-xs text-brand-text-secondary">Created</p><p className="mt-1 text-white">{date(detail.created_at)}</p></div><div><p className="text-xs text-brand-text-secondary">Updated</p><p className="mt-1 text-white">{date(detail.updated_at)}</p></div></div>
             {staff && transitions[detail.status].length > 0 && <form onSubmit={updateStatus} className="grid gap-3 rounded border border-brand-light bg-brand-dark/50 p-4 md:grid-cols-[1fr_2fr_auto] md:items-end"><label className="text-xs text-brand-text-secondary">Next status<select value={nextStatus} onChange={e => setNextStatus(e.target.value as CaseStatus)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white">{transitions[detail.status].map(status => <option key={status} value={status}>{label(status)}</option>)}</select></label><label className="text-xs text-brand-text-secondary">Reason<input required minLength={10} maxLength={1000} value={statusReason} onChange={e => setStatusReason(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" placeholder="Explain the status transition..." /></label><button disabled={busy || !statusReason.trim()} className="rounded bg-brand-accent px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Update status</button></form>}
-            {staff && <form onSubmit={assignCase} className="mt-4 grid gap-3 rounded border border-brand-light p-4 md:grid-cols-2"><div className="md:col-span-2"><h3 className="text-sm font-bold text-white">Assign investigator</h3><p className="mt-1 text-xs text-brand-text-secondary">Enter the UUID of an active investigator or organization administrator in this organization.</p></div><label className="text-xs text-brand-text-secondary">Assignee user ID<input required pattern="[0-9a-fA-F-]{36}" value={assignee} onChange={e => setAssignee(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" placeholder="UUID" /></label><label className="text-xs text-brand-text-secondary">Reason<input required minLength={5} maxLength={500} value={assignmentReason} onChange={e => setAssignmentReason(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" placeholder="Assignment rationale" /></label><div className="md:col-span-2"><button disabled={busy} className="rounded border border-brand-accent px-3 py-2 text-xs font-bold text-brand-accent disabled:opacity-50">Record assignment</button></div></form>}
+            {staff && <form onSubmit={assignCase} className="mt-4 grid gap-3 rounded border border-brand-light p-4 md:grid-cols-2"><div className="md:col-span-2"><h3 className="text-sm font-bold text-white">Assign investigator</h3><p className="mt-1 text-xs text-brand-text-secondary">Enter the UUID of an active investigator or organization administrator in this organization.</p></div><label className="text-xs text-brand-text-secondary">Investigator<select required value={assignee} onChange={e => setAssignee(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white"><option value="">Choose an active investigator</option>{investigators.map(person=><option key={person.userId} value={person.userId}>{person.displayName} · {person.role.replaceAll('_',' ')}</option>)}</select></label><label className="text-xs text-brand-text-secondary">Reason<input required minLength={5} maxLength={500} value={assignmentReason} onChange={e => setAssignmentReason(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" placeholder="Assignment rationale" /></label><div className="md:col-span-2"><button disabled={busy} className="rounded border border-brand-accent px-3 py-2 text-xs font-bold text-brand-accent disabled:opacity-50">Record assignment</button></div></form>}
             <div className="mt-5"><h3 className="mb-3 font-bold text-white">Assignment history</h3>{detail.assignments.length === 0 ? <p className="text-xs text-brand-text-secondary">No assignments recorded.</p> : <ul className="space-y-2">{detail.assignments.map(item => <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-brand-light p-3 text-xs"><div><p className="font-mono text-brand-accent">{item.assigned_to_user_id}</p><p className="mt-1 text-brand-text-secondary">{item.assignment_reason} · {label(item.status)}</p></div>{staff && item.status === 'active' && <button onClick={() => releaseAssignment(item.id)} disabled={busy} className="text-red-300 hover:text-red-200">Release</button>}</li>)}</ul>}</div>
             <div className="mt-5"><h3 className="mb-3 font-bold text-white">Case timeline</h3>{detail.timeline.length === 0 ? <p className="text-xs text-brand-text-secondary">No timeline events.</p> : <ol className="space-y-3 border-l border-brand-light pl-4">{detail.timeline.map(event => <li key={event.id} className="relative"><span className="absolute -left-[21px] top-1 h-2 w-2 rounded-full bg-brand-accent" /><p className="text-xs font-bold uppercase text-brand-accent">{label(event.event_type)}</p><p className="mt-1 text-sm text-white">{event.description}</p><p className="mt-1 text-[11px] text-brand-text-secondary">{date(event.occurred_at)} · Actor {event.actor_user_id}</p></li>)}</ol>}</div>
-            <div className="mt-5"><h3 className="mb-3 font-bold text-white">Authorization requests</h3>{detail.authorizations.length === 0 ? <p className="text-xs text-brand-text-secondary">No sensitive requests recorded.</p> : <ul className="space-y-2">{detail.authorizations.map(item => <li key={item.id} className="rounded border border-brand-light p-3 text-xs"><div className="flex flex-wrap justify-between gap-2"><strong className="text-white">{label(item.requested_action)}</strong><span className="uppercase text-brand-accent">{label(item.status)}</span></div><p className="mt-1 text-brand-text-secondary">{item.purpose}</p><p className="mt-1 text-brand-text-secondary">Expires {date(item.valid_until)}</p></li>)}</ul>}</div>
+            <div className="mt-5"><h3 className="mb-3 font-bold text-white">Authorization requests</h3>
+              {staff && <form onSubmit={createAuthorization} className="mb-4 space-y-3 rounded border border-brand-light bg-brand-dark/40 p-4">
+                <p className="text-xs text-brand-text-secondary">Create a purpose-limited request for independent review. IPTIRS does not submit requests to telecom operators.</p>
+                <label className="block text-xs text-brand-text-secondary">Purpose<input required minLength={10} maxLength={1000} value={authPurpose} onChange={e=>setAuthPurpose(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" /></label>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="text-xs text-brand-text-secondary">Requested action<select value={authAction} onChange={e=>setAuthAction(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white"><option value="operator_status_check">Operator status check</option><option value="operator_data_request">Operator data request</option><option value="other_approved_process">Other approved process</option></select></label>
+                  <label className="text-xs text-brand-text-secondary">Legal authority reference<input required minLength={3} maxLength={240} value={authReference} onChange={e=>setAuthReference(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" /></label>
+                  <label className="text-xs text-brand-text-secondary">Valid until<input required type="datetime-local" value={authExpiry} onChange={e=>setAuthExpiry(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" /></label>
+                  <label className="text-xs text-brand-text-secondary">Scope JSON object<textarea required rows={2} value={authScope} onChange={e=>setAuthScope(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 font-mono text-xs text-white" /></label>
+                </div>
+                <button disabled={busy} className="rounded border border-brand-accent px-3 py-2 text-xs font-bold text-brand-accent disabled:opacity-50">Submit for independent approval</button>
+              </form>}
+              {detail.authorizations.length === 0 ? <p className="text-xs text-brand-text-secondary">No sensitive requests recorded.</p> : <ul className="space-y-2">{detail.authorizations.map(item => <li key={item.id} className="rounded border border-brand-light p-3 text-xs">
+                <div className="flex flex-wrap justify-between gap-2"><strong className="text-white">{label(item.requested_action)}</strong><span className="uppercase text-brand-accent">{label(item.status)}</span></div>
+                <p className="mt-1 text-brand-text-secondary">{item.purpose}</p><p className="mt-1 text-brand-text-secondary">Expires {date(item.valid_until)} · Requested by {item.requested_by_user_id}</p>
+                {item.decision_reason && <p className="mt-2 text-brand-text-secondary">Decision: {item.decision_reason}</p>}
+                {['organization_admin','authorization_approver'].includes(role) && item.status==='pending_approval' && item.requested_by_user_id!==undefined && <div className="mt-3 space-y-2"><label className="block text-xs text-brand-text-secondary">Independent decision reason<textarea minLength={10} maxLength={1000} rows={2} value={decisionReasons[item.id]||''} onChange={e=>setDecisionReasons(current=>({...current,[item.id]:e.target.value}))} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" /></label><div className="flex gap-2"><button type="button" disabled={busy || (decisionReasons[item.id]||'').trim().length<10} onClick={()=>decideAuthorization(item.id,'approved')} className="rounded bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Approve</button><button type="button" disabled={busy || (decisionReasons[item.id]||'').trim().length<10} onClick={()=>decideAuthorization(item.id,'rejected')} className="rounded bg-red-800 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Reject</button></div></div>}
+              </li>)}</ul>}</div>
           </>}
         </section>
       </div>
