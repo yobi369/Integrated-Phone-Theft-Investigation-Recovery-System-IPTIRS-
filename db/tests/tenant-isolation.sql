@@ -51,6 +51,22 @@ END;
 $$;
 
 DO $$
+DECLARE visible_staff integer;
+BEGIN
+  SELECT count(*) INTO visible_staff FROM users;
+  IF visible_staff <> 3 THEN
+    RAISE EXCEPTION 'Investigator directory scope failed: expected 3 active staff identities, got %', visible_staff;
+  END IF;
+  IF EXISTS (SELECT 1 FROM users WHERE id IN (
+    '20000000-0000-4000-8000-000000000003',
+    '20000000-0000-4000-8000-000000000004'
+  )) THEN
+    RAISE EXCEPTION 'Investigator directory exposed reporter or auditor identities';
+  END IF;
+END;
+$$;
+
+DO $$
 DECLARE visible_cases integer;
 BEGIN
   SELECT count(*) INTO visible_cases FROM cases;
