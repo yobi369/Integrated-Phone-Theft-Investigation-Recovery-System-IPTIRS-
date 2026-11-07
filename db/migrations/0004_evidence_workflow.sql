@@ -13,3 +13,8 @@ ALTER TABLE evidence_items
   CHECK (length(trim(object_key)) BETWEEN 1 AND 512),
   ADD CONSTRAINT evidence_items_media_type_allowlist
   CHECK (media_type IN ('application/pdf', 'image/jpeg', 'image/png', 'image/webp'));
+
+-- Access records are part of the chain-of-custody record and must be append-only.
+CREATE TRIGGER evidence_access_events_append_only
+  BEFORE UPDATE OR DELETE ON evidence_access_events
+  FOR EACH ROW EXECUTE FUNCTION reject_immutable_row_mutation();
