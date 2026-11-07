@@ -183,3 +183,37 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- Organization administrator membership visibility and update scope.
+SELECT set_config('app.current_user_id', '20000000-0000-4000-8000-000000000007', false);
+SELECT set_config('app.current_role', 'organization_admin', false);
+
+DO $$
+DECLARE visible_memberships integer;
+DECLARE visible_directory_users integer;
+DECLARE changed_rows integer;
+BEGIN
+  SELECT count(*) INTO visible_memberships FROM memberships;
+  SELECT count(*) INTO visible_directory_users FROM users;
+  IF visible_memberships <> 6 OR visible_directory_users <> 6 THEN
+    RAISE EXCEPTION 'Organization admin directory scope failed: memberships %, users %',
+      visible_memberships, visible_directory_users;
+  END IF;
+
+  UPDATE memberships SET status = 'suspended'
+   WHERE organization_id = '10000000-0000-4000-8000-000000000001'
+     AND user_id = '20000000-0000-4000-8000-000000000005';
+  GET DIAGNOSTICS changed_rows = ROW_COUNT;
+  IF changed_rows <> 1 THEN
+    RAISE EXCEPTION 'Organization admin could not suspend an organization member';
+  END IF;
+
+  UPDATE memberships SET status = 'active'
+   WHERE organization_id = '10000000-0000-4000-8000-000000000001'
+     AND user_id = '20000000-0000-4000-8000-000000000005';
+  GET DIAGNOSTICS changed_rows = ROW_COUNT;
+  IF changed_rows <> 1 THEN
+    RAISE EXCEPTION 'Organization admin could not reactivate a suspended member';
+  END IF;
+END;
+$$;
