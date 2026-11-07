@@ -7,13 +7,15 @@ INSERT INTO users (id, auth_subject, email, display_name) VALUES
   ('20000000-0000-4000-8000-000000000001', 'test|alpha', 'alpha@example.invalid', 'Alpha Test'),
   ('20000000-0000-4000-8000-000000000002', 'test|bravo', 'bravo@example.invalid', 'Bravo Test'),
   ('20000000-0000-4000-8000-000000000003', 'test|alpha-reporter', 'reporter@example.invalid', 'Alpha Reporter'),
-  ('20000000-0000-4000-8000-000000000004', 'test|alpha-auditor', 'auditor@example.invalid', 'Alpha Auditor');
+  ('20000000-0000-4000-8000-000000000004', 'test|alpha-auditor', 'auditor@example.invalid', 'Alpha Auditor'),
+  ('20000000-0000-4000-8000-000000000005', 'test|alpha-investigator-2', 'investigator2@example.invalid', 'Alpha Investigator Two');
 
 INSERT INTO memberships (organization_id, user_id, role) VALUES
   ('10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', 'investigator'),
   ('10000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', 'investigator'),
   ('10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003', 'reporter'),
-  ('10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000004', 'auditor');
+  ('10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000004', 'auditor'),
+  ('10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000005', 'investigator');
 
 INSERT INTO cases (id, organization_id, case_reference, created_by_user_id, category, summary) VALUES
   ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'ALPHA-001', '20000000-0000-4000-8000-000000000001', 'phone_theft', 'Synthetic alpha test case'),
