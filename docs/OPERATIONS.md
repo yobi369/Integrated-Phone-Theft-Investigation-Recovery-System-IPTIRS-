@@ -73,3 +73,15 @@ Before pilot use, define named incident owners, escalation contacts, evidence pr
 6. Independent penetration test and remediation.
 7. Accessibility, load, resilience, and user acceptance testing.
 8. Written pilot authorization, named accountable owners, support model, and rollback plan.
+
+
+## Evidence infrastructure prerequisites
+
+Evidence upload remains unavailable until all of the following are provisioned and verified in a non-production environment:
+
+- A private S3-compatible bucket with public access blocked, server-side encryption, least-privilege service credentials, versioning, lifecycle/retention policy, and tested backups.
+- `EVIDENCE_S3_BUCKET`, `EVIDENCE_S3_REGION`, `EVIDENCE_S3_ACCESS_KEY_ID`, and `EVIDENCE_S3_SECRET_ACCESS_KEY`; optionally `EVIDENCE_S3_ENDPOINT` for a compatible private endpoint. Keep credentials in a managed secret store, never in source control.
+- A reachable ClamAV daemon configured through `EVIDENCE_CLAMAV_HOST` and `EVIDENCE_CLAMAV_PORT`, with current signatures, network isolation, monitoring, and resource limits.
+- A documented restore and incident-response procedure. Never use real personal or investigative evidence during development testing.
+
+The API rejects uploads when storage/scanning configuration is incomplete or scanning fails. The current implementation does not yet provide retention schedules, legal holds, external hash anchoring, or an independent forensic validation report.
