@@ -32,34 +32,34 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const initialized = useRef(false);
+  const initialization = useRef<Promise<User | null> | null>(null);
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
     let active = true;
     const onUserLoaded = (nextUser: User) => { if (active) setUser(nextUser); };
     const onUserUnloaded = () => { if (active) setUser(null); };
     manager.events.addUserLoaded(onUserLoaded);
     manager.events.addUserUnloaded(onUserUnloaded);
 
-    void (async () => {
-      try {
+    if (!initialization.current) {
+      initialization.current = (async () => {
         if (window.location.pathname === '/auth/callback') {
           await manager.signinCallback();
           window.history.replaceState({}, document.title, '/');
         } else if (window.location.pathname === '/auth/silent-renew') {
           await manager.signinSilentCallback();
-          return;
+          return manager.getUser();
         }
-        const existing = await manager.getUser();
-        if (active) setUser(existing && !existing.expired ? existing : null);
-      } catch {
-        if (active) setError('Identity sign-in could not be completed. Check the OIDC client and redirect URI configuration.');
-      } finally {
-        if (active) setReady(true);
-      }
-    })();
+        return manager.getUser();
+      })();
+    }
+    void initialization.current.then(existing => {
+      if (active) setUser(existing && !existing.expired ? existing : null);
+    }).catch(() => {
+      if (active) setError('Identity sign-in could not be completed. Check the OIDC client and redirect URI configuration.');
+    }).finally(() => {
+      if (active) setReady(true);
+    });
 
     return () => {
       active = false;
