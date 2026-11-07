@@ -26,7 +26,8 @@
     "zod": "^4.6.7",
     "@aws-sdk/client-s3": "^3.800.0",
     "@fastify/multipart": "^9.0.3",
-    "file-type": "^22.3.0"
+    "file-type": "^22.3.0",
+    "oidc-client-ts": "^3.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
