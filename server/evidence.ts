@@ -169,7 +169,7 @@ export async function registerEvidenceRoutes(app: FastifyInstance, dependencies:
     try { identity = await dependencies.verifyToken(token); }
     catch { return reply.code(401).send(error('unauthorized', 'The bearer token could not be verified.')); }
     const orgHeader = request.headers['x-organization-id'];
-    if (typeof orgHeader !== 'string') return reply.code(400).send(error('invalid_organization', 'A valid X-Organization-Id header is required.'));
+    if (typeof orgHeader !== 'string' || !/^[0-9a-f-]{36}$/i.test(orgHeader)) return reply.code(400).send(error('invalid_organization', 'A valid X-Organization-Id header is required.'));
     const caseId = (request.params as { caseId?: string }).caseId;
     if (!caseId || !/^[0-9a-f-]{36}$/i.test(caseId)) return reply.code(400).send(error('invalid_request', 'A valid case identifier is required.'));
     const records = await withTenantContext(dependencies.pool, identity.subject, orgHeader, async (client) => {
@@ -191,10 +191,11 @@ export async function registerEvidenceRoutes(app: FastifyInstance, dependencies:
     if (!config) return reply.code(503).send(error('evidence_unavailable', 'Evidence storage and malware scanning are not configured.'));
     const orgHeader = request.headers['x-organization-id'];
     const query = request.query as { purpose?: string };
-    if (typeof orgHeader !== 'string' || !query.purpose || query.purpose.trim().length < 5 || query.purpose.length > 500) {
+    if (typeof orgHeader !== 'string' || !/^[0-9a-f-]{36}$/i.test(orgHeader) || !query.purpose || query.purpose.trim().length < 5 || query.purpose.length > 500) {
       return reply.code(400).send(error('invalid_request', 'Organization and a 5–500 character access purpose are required.'));
     }
     const evidenceId = (request.params as { evidenceId?: string }).evidenceId;
+    if (!evidenceId || !/^[0-9a-f-]{36}$/i.test(evidenceId)) return reply.code(400).send(error('invalid_request', 'A valid evidence identifier is required.'));
     const outcome = await withTenantContext(dependencies.pool, identity.subject, orgHeader, async (client, context) => {
       const result = await client.query(
         `SELECT id, case_id, object_key, sha256, media_type, byte_size, verification_status
