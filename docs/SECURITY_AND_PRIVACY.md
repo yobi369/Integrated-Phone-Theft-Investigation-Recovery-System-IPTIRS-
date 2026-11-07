@@ -39,7 +39,8 @@ Preserve the original object. Any redaction, conversion, annotation, or derived 
 - Deny access by default.
 - Enforce permissions on the server, not only in the user interface.
 - Require MFA for privileged users.
-- Require dual control for high-impact disclosures or actions.
+- Require dual control for high-impact disclosures or actions. IPTIRS implements a dedicated authorization-approver role and database decision function; the requester cannot approve or reject their own request.
+- Keep authorization decisions separate from external execution. An approval record does not itself authorize IPTIRS to access operator systems or trigger disclosure.
 - Revalidate authorization when a request is approved and before it is sent.
 - Log sensitive reads, searches, exports, permission changes, and failed access attempts.
 - Review privileged access periodically and revoke promptly when roles change.
@@ -55,7 +56,8 @@ Do not use real case data until all applicable items are satisfied:
 - [ ] Privacy notice, retention schedule, and data-subject process reviewed.
 - [ ] Threat model and data-flow map approved.
 - [ ] Independent security assessment completed.
-- [ ] Tenant isolation and authorization tests pass.
+- [x] Synthetic tenant-isolation and authorization workflow tests pass in CI.
+- [ ] Independent security assessment and institution-specific authorization review completed.
 - [ ] MFA and privileged-access controls verified.
 - [ ] Evidence integrity and audit-log controls tested.
 - [ ] Backup restore and incident response exercises completed.
