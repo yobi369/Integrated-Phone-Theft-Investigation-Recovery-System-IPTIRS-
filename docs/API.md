@@ -93,7 +93,11 @@ Allowed categories are `phone_theft`, `device_loss`, and `institutional_asset_lo
 
 The API currently supports only the initial storage/scanning workflow. Retention, legal holds, external integrity anchoring, derivative management, and institution-approved custody procedures remain outstanding.
 
-## Investigator directory\n\n- `GET /v1/organization/investigators` — active investigators and organization administrators can retrieve the names and role labels of active investigator/admin members in the same organization. This is a limited directory for case assignment; it does not expose reporter or auditor identities.\n\n## Organization membership administration
+## Investigator directory
+
+- `GET /v1/organization/investigators` — active investigators and organization administrators can retrieve the names and role labels of active investigator/admin members in the same organization. This is a limited directory for case assignment; it does not expose reporter or auditor identities.
+
+## Organization membership administration
 
 - `GET /v1/organization/members` — organization administrators can list membership identity and role/status metadata.
 - `PATCH /v1/organization/members/{userId}` — organization administrators can change a member's role and/or set membership status to active, suspended, or revoked. Self-modification is blocked, and the last active organization administrator cannot be demoted or suspended. Every change writes an audit event.
