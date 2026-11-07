@@ -48,7 +48,7 @@ async function scanWithClamAv(host: string, port: number, content: Buffer): Prom
     };
     socket.setTimeout(30_000);
     socket.once('connect', () => {
-      socket.write('zINSTREAM\\0');
+      socket.write('zINSTREAM\0');
       const chunkSize = Buffer.alloc(4);
       chunkSize.writeUInt32BE(content.length);
       socket.write(chunkSize);
