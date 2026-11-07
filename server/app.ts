@@ -413,8 +413,8 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
       assertStaff(context);
 
       const target = await client.query(
-        "SELECT user_id, role FROM memberships WHERE user_id = $1 AND status = 'active' AND role IN ('organization_admin', 'investigator') LIMIT 1",
-        [body.data.assigneeUserId]
+        "SELECT user_id, role FROM memberships WHERE organization_id = $2 AND user_id = $1 AND status = 'active' AND role IN ('organization_admin', 'investigator') LIMIT 1",
+        [body.data.assigneeUserId, request.organizationId]
       );
       if (!target.rows[0]) throw new RequestContextError(403, 'The assignee must be an active investigator or organization administrator in this organization.');
 
