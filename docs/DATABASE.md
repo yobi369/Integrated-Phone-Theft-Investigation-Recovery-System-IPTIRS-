@@ -19,13 +19,15 @@ CREATE ROLE iptirs_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREP
 
 Set a strong password through your secret-management process. Do not reuse the CI test password.
 
-Apply the migration as a database migration owner, not as the application role:
+Apply all migrations in sequence as a database migration owner, not as the application role:
 
 ```bash
 psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0001_initial.sql
+psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0002_case_workflow.sql
+psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0003_authorization_decisions.sql
 ```
 
-The application role receives only the grants explicitly listed at the end of the migration. It cannot create organizations or memberships, delete evidence, update audit events, or approve authorization records.
+The application role receives only the grants explicitly listed in the migrations. It cannot create organizations or memberships, delete evidence, update audit events, or directly update authorization records. A separate non-login, non-BYPASSRLS role owns the narrowly scoped authorization decision function.
 
 ## Tenant context
 
@@ -39,7 +41,7 @@ SET LOCAL app.current_user_id = 'verified-user-uuid';
 COMMIT;
 ```
 
-The API first sets app.current_auth_subject from the verified OIDC sub claim to look up the provisioned user, then sets the user and organization context after checking the active membership. These values must come from verified server-side identity and membership resolution, never from request-body fields, query parameters, or client-controlled identity headers. Always use parameterized SQL and rollback on errors. Never keep these settings on a pooled connection beyond the transaction.
+The API first sets app.current_auth_subject from the verified OIDC sub claim to look up the provisioned user, then sets the user and organization context after checking the active membership. These values must come from verified server-side identity and membership resolution, never from request-body fields, query parameters, or client-controlled identity headers. Set the resolved membership role with transaction-local `set_config('app.current_role', ...)` only after membership verification. Always use parameterized SQL and rollback on errors. Never keep these settings on a pooled connection beyond the transaction.
 
 PostgreSQL custom settings are not a substitute for authentication: a database role with arbitrary SQL access can set them. Protect the API from SQL injection, restrict database network access to the API, and do not expose the database directly to users or partner systems.
 
