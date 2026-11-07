@@ -16,7 +16,7 @@ $$;
 
 SET app.current_organization_id = '10000000-0000-4000-8000-000000000001';
 SET app.current_user_id = '20000000-0000-4000-8000-000000000001';
-SET app.current_role = 'investigator';
+SELECT set_config('app.current_role', 'investigator', false);
 
 DO $$
 DECLARE before_update timestamptz;
