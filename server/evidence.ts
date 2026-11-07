@@ -78,12 +78,12 @@ function requireIdentity(request: FastifyRequest): string {
 
 export async function registerEvidenceRoutes(app: FastifyInstance, dependencies: EvidenceDependencies): Promise<void> {
   app.post('/v1/cases/:caseId/evidence', async (request, reply) => {
-    const config = evidenceConfiguration();
-    if (!config) return reply.code(503).send(error('evidence_unavailable', 'Evidence storage and malware scanning are not configured.'));
     const token = requireIdentity(request);
     let identity;
     try { identity = await dependencies.verifyToken(token); }
     catch { return reply.code(401).send(error('unauthorized', 'The bearer token could not be verified.')); }
+    const config = evidenceConfiguration();
+    if (!config) return reply.code(503).send(error('evidence_unavailable', 'Evidence storage and malware scanning are not configured.'));
     const orgHeader = request.headers['x-organization-id'];
     if (typeof orgHeader !== 'string' || !/^[0-9a-f-]{36}$/i.test(orgHeader)) {
       return reply.code(400).send(error('invalid_organization', 'A valid X-Organization-Id header is required.'));
@@ -183,12 +183,12 @@ export async function registerEvidenceRoutes(app: FastifyInstance, dependencies:
   });
 
   app.get('/v1/evidence/:evidenceId/download', async (request, reply) => {
-    const config = evidenceConfiguration();
-    if (!config) return reply.code(503).send(error('evidence_unavailable', 'Evidence storage and malware scanning are not configured.'));
     const token = requireIdentity(request);
     let identity;
     try { identity = await dependencies.verifyToken(token); }
     catch { return reply.code(401).send(error('unauthorized', 'The bearer token could not be verified.')); }
+    const config = evidenceConfiguration();
+    if (!config) return reply.code(503).send(error('evidence_unavailable', 'Evidence storage and malware scanning are not configured.'));
     const orgHeader = request.headers['x-organization-id'];
     const query = request.query as { purpose?: string };
     if (typeof orgHeader !== 'string' || !query.purpose || query.purpose.trim().length < 5 || query.purpose.length > 500) {
