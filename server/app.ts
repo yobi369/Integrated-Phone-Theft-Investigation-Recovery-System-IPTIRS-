@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import multipart from '@fastify/multipart';
 import type { Pool, PoolClient } from 'pg';
 import { z, ZodError } from 'zod';
 import { randomUUID } from 'node:crypto';
@@ -124,6 +125,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Organization-Id']
   });
+  await app.register(multipart, { limits: { fileSize: 50 * 1024 * 1024, files: 1, fields: 5, parts: 6 }, throwFileSizeLimit: true });
   await app.register(rateLimit, {
     max: dependencies.config.rateLimitMax,
     timeWindow: '1 minute'
