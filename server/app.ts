@@ -16,7 +16,8 @@ import {
   decideAuthorizationSchema,
   listCasesQuerySchema,
   organizationIdSchema,
-  updateCaseStatusSchema
+  updateCaseStatusSchema,
+  updateMembershipSchema
 } from './schemas.js';
 import type { AppConfig } from './config.js';
 import { registerEvidenceRoutes } from './evidence.js';
@@ -71,7 +72,8 @@ async function writeAudit(
   requestId: string,
   action: string,
   caseId: string,
-  metadata: Record<string, unknown>
+  metadata: Record<string, unknown>,
+  targetType = 'case'
 ): Promise<void> {
   const occurredAt = new Date().toISOString();
   const eventHash = createAuditDigest({
@@ -79,14 +81,14 @@ async function writeAudit(
     actorUserId,
     requestId,
     action,
-    targetType: 'case',
+    targetType,
     targetId: caseId,
     metadata,
     occurredAt
   });
   await client.query(
     'INSERT INTO audit_events (organization_id, actor_user_id, request_id, action, target_type, target_id, metadata, event_hash, occurred_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)',
-    [organizationId, actorUserId, requestId, action, 'case', caseId, JSON.stringify(metadata), eventHash, occurredAt]
+    [organizationId, actorUserId, requestId, action, targetType, caseId, JSON.stringify(metadata), eventHash, occurredAt]
   );
 }
 
@@ -193,6 +195,74 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     } catch {
       return reply.code(503).send(errorResponse('not_ready', 'The database is not available.'));
     }
+  });
+
+
+  app.get('/v1/organization/members', { preHandler: authenticate }, async (request) => {
+    return withTenantContext(dependencies.pool, request.identity!.subject, request.organizationId!, async (client, context) => {
+      if (context.role !== 'organization_admin') throw new RequestContextError(403, 'Organization administrator role is required.');
+      const result = await client.query(
+        `SELECT m.user_id AS "userId", u.email, u.display_name AS "displayName",
+                m.role, m.status, m.created_at AS "joinedAt"
+           FROM memberships m
+           JOIN users u ON u.id = m.user_id
+          WHERE m.organization_id = $1
+          ORDER BY CASE WHEN m.status = 'active' THEN 0 ELSE 1 END, u.display_name ASC`,
+        [request.organizationId]
+      );
+      return { data: result.rows };
+    });
+  });
+
+  app.patch('/v1/organization/members/:userId', { preHandler: authenticate }, async (request, reply) => {
+    const params = z.object({ userId: z.string().uuid() }).strict().safeParse(request.params);
+    const body = updateMembershipSchema.safeParse(request.body);
+    if (!params.success) throw params.error;
+    if (!body.success) throw body.error;
+    if (body.data.role === undefined && body.data.status === undefined) {
+      return reply.code(400).send(errorResponse('invalid_request', 'At least one membership field must be updated.'));
+    }
+
+    const updated = await withTenantContext(dependencies.pool, request.identity!.subject, request.organizationId!, async (client, context) => {
+      if (context.role !== 'organization_admin') throw new RequestContextError(403, 'Organization administrator role is required.');
+      if (params.data.userId === context.userId) throw new RequestContextError(403, 'Administrators cannot change their own membership through this endpoint.');
+
+      const targetResult = await client.query(
+        'SELECT user_id, role, status FROM memberships WHERE organization_id = $1 AND user_id = $2 FOR UPDATE',
+        [request.organizationId, params.data.userId]
+      );
+      const target = targetResult.rows[0];
+      if (!target) return null;
+      const nextRole = body.data.role ?? target.role;
+      const nextStatus = body.data.status ?? target.status;
+
+      if (target.role === 'organization_admin' &&
+          target.status === 'active' &&
+          (nextRole !== 'organization_admin' || nextStatus !== 'active')) {
+        const admins = await client.query(
+          "SELECT user_id FROM memberships WHERE organization_id = $1 AND role = 'organization_admin' AND status = 'active' FOR UPDATE",
+          [request.organizationId]
+        );
+        if (admins.rows.length <= 1) throw new RequestContextError(403, 'The organization must retain at least one active administrator.');
+      }
+
+      const result = await client.query(
+        `UPDATE memberships SET role = $3, status = $4
+          WHERE organization_id = $1 AND user_id = $2
+          RETURNING user_id AS "userId", role, status, created_at AS "joinedAt"`,
+        [request.organizationId, params.data.userId, nextRole, nextStatus]
+      );
+      const changed = result.rows[0];
+      await writeAudit(
+        client, request.organizationId!, context.userId, request.id,
+        'organization.membership_updated', params.data.userId,
+        { previousRole: target.role, role: nextRole, previousStatus: target.status, status: nextStatus },
+        'membership'
+      );
+      return changed;
+    });
+    if (!updated) return reply.code(404).send(errorResponse('not_found', 'The organization membership was not found.'));
+    return { data: updated };
   });
 
   app.get('/v1/me', { preHandler: authenticate }, async (request) => {
