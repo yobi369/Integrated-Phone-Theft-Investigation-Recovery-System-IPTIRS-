@@ -198,6 +198,24 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   });
 
 
+
+  app.get('/v1/organization/investigators', { preHandler: authenticate }, async (request) => {
+    return withTenantContext(dependencies.pool, request.identity!.subject, request.organizationId!, async (client, context) => {
+      assertStaff(context);
+      const result = await client.query(
+        `SELECT m.user_id AS "userId", u.display_name AS "displayName", m.role
+           FROM memberships m
+           JOIN users u ON u.id = m.user_id
+          WHERE m.organization_id = $1
+            AND m.status = 'active'
+            AND m.role IN ('organization_admin', 'investigator')
+          ORDER BY u.display_name ASC`,
+        [request.organizationId]
+      );
+      return { data: result.rows };
+    });
+  });
+
   app.get('/v1/organization/members', { preHandler: authenticate }, async (request) => {
     return withTenantContext(dependencies.pool, request.identity!.subject, request.organizationId!, async (client, context) => {
       if (context.role !== 'organization_admin') throw new RequestContextError(403, 'Organization administrator role is required.');
