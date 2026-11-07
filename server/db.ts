@@ -63,6 +63,12 @@ export async function withTenantContext<T>(
       throw new RequestContextError(403, 'No active membership exists for this organization.');
     }
 
+    // Used by narrowly scoped RLS policies after the role is resolved from DB.
+    await client.query(
+      "SELECT set_config('app.current_role', $1, true)",
+      [membership.role]
+    );
+
     const result = await operation(client, {
       userId: user.id,
       role: membership.role
