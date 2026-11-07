@@ -16,6 +16,7 @@ $$;
 
 SET app.current_organization_id = '10000000-0000-4000-8000-000000000001';
 SET app.current_user_id = '20000000-0000-4000-8000-000000000001';
+SET app.current_role = 'investigator';
 
 DO $$
 DECLARE before_update timestamptz;
@@ -81,6 +82,7 @@ DECLARE visible_cases integer;
 DECLARE updated_cases integer;
 BEGIN
   PERFORM set_config('app.current_user_id', '20000000-0000-4000-8000-000000000003', false);
+  PERFORM set_config('app.current_role', 'reporter', false);
   SELECT count(*) INTO visible_cases FROM cases;
   IF visible_cases <> 1 THEN
     RAISE EXCEPTION 'Reporter scope failed: expected only its own case, got %', visible_cases;
@@ -94,6 +96,7 @@ BEGIN
   END IF;
 
   PERFORM set_config('app.current_user_id', '20000000-0000-4000-8000-000000000001', false);
+  PERFORM set_config('app.current_role', 'investigator', false);
 END;
 $$;
 
