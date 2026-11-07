@@ -13,7 +13,7 @@ interface CaseDetail extends CaseRow {
   timeline: Array<{ id: string; event_type: string; description: string; occurred_at: string; actor_user_id: string }>;
   authorizations: Array<{ id: string; requested_action: string; purpose: string; status: string; valid_until: string; requested_by_user_id: string; decision_reason?: string; decided_by_user_id?: string; decided_at?: string }>;
 }
-interface Props { apiBaseUrl: string; token: string; organizationId: string; role: string; }
+interface Props { apiBaseUrl: string; token: string; organizationId: string; role: string; currentUserId: string; }
 const statuses: CaseStatus[] = ['submitted','under_review','accepted','in_progress','pending_external_response','recovered','closed','rejected'];
 const transitions: Record<CaseStatus, CaseStatus[]> = {
   submitted: ['under_review','rejected'], under_review: ['accepted','rejected'], accepted: ['in_progress'],
@@ -23,7 +23,7 @@ const transitions: Record<CaseStatus, CaseStatus[]> = {
 const label = (value: string) => value.replaceAll('_', ' ');
 const date = (value: string) => new Date(value).toLocaleString();
 
-const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, role }) => {
+const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, role, currentUserId }) => {
   const [cases, setCases] = useState<CaseRow[]>([]);
   const [investigators, setInvestigators] = useState<Investigator[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -192,7 +192,7 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
                 <div className="flex flex-wrap justify-between gap-2"><strong className="text-white">{label(item.requested_action)}</strong><span className="uppercase text-brand-accent">{label(item.status)}</span></div>
                 <p className="mt-1 text-brand-text-secondary">{item.purpose}</p><p className="mt-1 text-brand-text-secondary">Expires {date(item.valid_until)} · Requested by {item.requested_by_user_id}</p>
                 {item.decision_reason && <p className="mt-2 text-brand-text-secondary">Decision: {item.decision_reason}</p>}
-                {['organization_admin','authorization_approver'].includes(role) && item.status==='pending_approval' && item.requested_by_user_id!==undefined && <div className="mt-3 space-y-2"><label className="block text-xs text-brand-text-secondary">Independent decision reason<textarea minLength={10} maxLength={1000} rows={2} value={decisionReasons[item.id]||''} onChange={e=>setDecisionReasons(current=>({...current,[item.id]:e.target.value}))} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" /></label><div className="flex gap-2"><button type="button" disabled={busy || (decisionReasons[item.id]||'').trim().length<10} onClick={()=>decideAuthorization(item.id,'approved')} className="rounded bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Approve</button><button type="button" disabled={busy || (decisionReasons[item.id]||'').trim().length<10} onClick={()=>decideAuthorization(item.id,'rejected')} className="rounded bg-red-800 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Reject</button></div></div>}
+                {['organization_admin','authorization_approver'].includes(role) && item.status==='pending_approval' && item.requested_by_user_id!==currentUserId && <div className="mt-3 space-y-2"><label className="block text-xs text-brand-text-secondary">Independent decision reason<textarea minLength={10} maxLength={1000} rows={2} value={decisionReasons[item.id]||''} onChange={e=>setDecisionReasons(current=>({...current,[item.id]:e.target.value}))} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" /></label><div className="flex gap-2"><button type="button" disabled={busy || (decisionReasons[item.id]||'').trim().length<10} onClick={()=>decideAuthorization(item.id,'approved')} className="rounded bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Approve</button><button type="button" disabled={busy || (decisionReasons[item.id]||'').trim().length<10} onClick={()=>decideAuthorization(item.id,'rejected')} className="rounded bg-red-800 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Reject</button></div></div>}
               </li>)}</ul>}</div>
           </>}
         </section>
