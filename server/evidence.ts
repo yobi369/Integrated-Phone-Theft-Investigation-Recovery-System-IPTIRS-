@@ -191,7 +191,8 @@ export async function registerEvidenceRoutes(app: FastifyInstance, dependencies:
     if (!config) return reply.code(503).send(error('evidence_unavailable', 'Evidence storage and malware scanning are not configured.'));
     const orgHeader = request.headers['x-organization-id'];
     const query = request.query as { purpose?: string };
-    if (typeof orgHeader !== 'string' || !/^[0-9a-f-]{36}$/i.test(orgHeader) || !query.purpose || query.purpose.trim().length < 5 || query.purpose.length > 500) {
+    const accessPurpose = query.purpose;
+    if (typeof orgHeader !== 'string' || !/^[0-9a-f-]{36}$/i.test(orgHeader) || !accessPurpose || accessPurpose.trim().length < 5 || accessPurpose.length > 500) {
       return reply.code(400).send(error('invalid_request', 'Organization and a 5–500 character access purpose are required.'));
     }
     const evidenceId = (request.params as { evidenceId?: string }).evidenceId;
@@ -212,7 +213,7 @@ export async function registerEvidenceRoutes(app: FastifyInstance, dependencies:
       }
       await client.query(
         'INSERT INTO evidence_access_events (organization_id,evidence_id,actor_user_id,action,purpose) VALUES ($1,$2,$3,$4,$5)',
-        [orgHeader, evidenceId, context.userId, 'download', query.purpose.trim()]
+        [orgHeader, evidenceId, context.userId, 'download', accessPurpose.trim()]
       );
       return { content, mediaType: record.media_type, evidenceId };
     });
