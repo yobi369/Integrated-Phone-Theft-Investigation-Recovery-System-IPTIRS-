@@ -10,7 +10,9 @@ import { extractBearerToken, type TokenVerifier } from './auth.js';
 import { RequestContextError, withTenantContext, type TenantContext } from './db.js';
 import {
   createCaseAssignmentSchema,
+  createAuthorizationSchema,
   createCaseSchema,
+  decideAuthorizationSchema,
   listCasesQuerySchema,
   organizationIdSchema,
   updateCaseStatusSchema
@@ -32,6 +34,7 @@ class CaseWorkflowConflictError extends Error {
   }
 }
 const staffRoles = new Set(['organization_admin', 'investigator']);
+const authorizationApproverRoles = new Set(['organization_admin', 'authorization_approver']);
 
 const statusTransitions: Record<string, string[]> = {
   submitted: ['under_review', 'rejected'],
@@ -91,6 +94,12 @@ function assertStaff(context: TenantContext): void {
   }
 }
 
+function assertAuthorizationApprover(context: TenantContext): void {
+  if (!authorizationApproverRoles.has(context.role)) {
+    throw new RequestContextError(403, 'An independent authorization approver role is required.');
+  }
+}
+
 export async function buildApp(dependencies: AppDependencies): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
@@ -131,7 +140,17 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     if (error instanceof CaseWorkflowConflictError || (error as { code?: string }).code === '23514') {
       return reply.code(409).send(errorResponse('workflow_conflict', 'The requested case workflow transition is not valid.'));
     }
-    if ((error as { code?: string }).code === '23505') {
+    const databaseCode = (error as { code?: string }).code;
+    if (databaseCode === '42501') {
+      return reply.code(403).send(errorResponse('forbidden', 'The requested authorization action is not permitted.'));
+    }
+    if (databaseCode === '02000') {
+      return reply.code(404).send(errorResponse('not_found', 'The authorization request was not found.'));
+    }
+    if (databaseCode === '22023') {
+      return reply.code(400).send(errorResponse('invalid_request', 'The authorization decision is invalid.'));
+    }
+    if (databaseCode === '23505') {
       return reply.code(409).send(errorResponse('conflict', 'The requested case assignment already exists.'));
     }
 
@@ -246,7 +265,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
       const caseRecord = caseResult.rows[0];
       if (!caseRecord) return reply.code(404).send(errorResponse('not_found', 'The case was not found.'));
 
-      const [assignments, timeline] = await Promise.all([
+      const [assignments, timeline, authorizations] = await Promise.all([
         client.query(
           `SELECT id, assigned_to_user_id, assigned_by_user_id, assignment_reason, status, assigned_at, released_at
              FROM case_assignments WHERE case_id = $1 ORDER BY assigned_at DESC`,
@@ -256,9 +275,23 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
           `SELECT id, actor_user_id, event_type, description, metadata, occurred_at
              FROM case_events WHERE case_id = $1 ORDER BY occurred_at ASC, id ASC`,
           [params.data.caseId]
+        ),
+        client.query(
+          `SELECT id, requested_by_user_id, purpose, requested_action, legal_authority_reference,
+                  scope, valid_until, status, approved_by_user_id, approved_at,
+                  decided_by_user_id, decided_at, decision_reason, created_at
+             FROM authorization_records WHERE case_id = $1 ORDER BY created_at DESC`,
+          [params.data.caseId]
         )
       ]);
-      return reply.send({ data: { ...caseRecord, assignments: assignments.rows, timeline: timeline.rows } });
+      return reply.send({
+        data: {
+          ...caseRecord,
+          assignments: assignments.rows,
+          timeline: timeline.rows,
+          authorizations: authorizations.rows
+        }
+      });
     });
   });
 
@@ -356,6 +389,99 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
 
     if (!released) return reply.code(404).send(errorResponse('not_found', 'The active case assignment was not found.'));
     return { data: released };
+  });
+
+  app.post('/v1/cases/:caseId/authorizations', { preHandler: authenticate }, async (request, reply) => {
+    const params = z.object({ caseId: z.string().uuid() }).strict().safeParse(request.params);
+    const body = createAuthorizationSchema.safeParse(request.body);
+    if (!params.success) throw params.error;
+    if (!body.success) throw body.error;
+    const validUntil = new Date(body.data.validUntil);
+    if (!Number.isFinite(validUntil.getTime()) || validUntil.getTime() <= Date.now()) {
+      return reply.code(400).send(errorResponse('invalid_request', 'Authorization validity must end in the future.'));
+    }
+
+    const created = await withTenantContext(
+      dependencies.pool,
+      request.identity!.subject,
+      request.organizationId!,
+      async (client, context) => {
+        assertStaff(context);
+        const caseResult = await client.query('SELECT id FROM cases WHERE id = $1', [params.data.caseId]);
+        if (!caseResult.rows[0]) return null;
+
+        const result = await client.query(
+          `INSERT INTO authorization_records
+            (organization_id, case_id, requested_by_user_id, purpose, requested_action,
+             legal_authority_reference, scope, valid_until)
+           VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
+           RETURNING id, case_id, requested_by_user_id, purpose, requested_action,
+                     legal_authority_reference, scope, valid_until, status, created_at`,
+          [
+            request.organizationId,
+            params.data.caseId,
+            context.userId,
+            body.data.purpose,
+            body.data.requestedAction,
+            body.data.legalAuthorityReference,
+            JSON.stringify(body.data.scope),
+            validUntil.toISOString()
+          ]
+        );
+        const authorization = result.rows[0];
+        await writeCaseEvent(
+          client, request.organizationId!, context.userId, params.data.caseId,
+          'authorization_requested',
+          'Sensitive operator request submitted for independent authorization review.',
+          { authorizationId: authorization.id, requestedAction: body.data.requestedAction, validUntil: validUntil.toISOString() }
+        );
+        await writeAudit(
+          client, request.organizationId!, context.userId, request.id,
+          'authorization.requested', params.data.caseId,
+          { authorizationId: authorization.id, requestedAction: body.data.requestedAction, validUntil: validUntil.toISOString() }
+        );
+        return authorization;
+      }
+    );
+    if (!created) return reply.code(404).send(errorResponse('not_found', 'The case was not found.'));
+    return reply.code(201).send({ data: created });
+  });
+
+  app.post('/v1/authorizations/:authorizationId/decision', { preHandler: authenticate }, async (request, reply) => {
+    const params = z.object({ authorizationId: z.string().uuid() }).strict().safeParse(request.params);
+    const body = decideAuthorizationSchema.safeParse(request.body);
+    if (!params.success) throw params.error;
+    if (!body.success) throw body.error;
+
+    const decision = await withTenantContext(
+      dependencies.pool,
+      request.identity!.subject,
+      request.organizationId!,
+      async (client, context) => {
+        assertAuthorizationApprover(context);
+        const result = await client.query(
+          'SELECT * FROM decide_authorization_record($1, $2, $3)',
+          [params.data.authorizationId, body.data.decision, body.data.reason]
+        );
+        const record = result.rows[0];
+        if (!record) return null;
+
+        const eventType = body.data.decision === 'approved' ? 'authorization_approved' : 'authorization_rejected';
+        await writeCaseEvent(
+          client, request.organizationId!, context.userId, record.case_id,
+          eventType, body.data.reason,
+          { authorizationId: record.id, decision: body.data.decision, decidedAt: record.decided_at }
+        );
+        await writeAudit(
+          client, request.organizationId!, context.userId, request.id,
+          `authorization.${body.data.decision}`, record.case_id,
+          { authorizationId: record.id, decision: body.data.decision, decidedAt: record.decided_at }
+        );
+        return record;
+      }
+    );
+    if (!decision) return reply.code(404).send(errorResponse('not_found', 'The authorization request was not found.'));
+    return { data: decision };
   });
 
   return app;
