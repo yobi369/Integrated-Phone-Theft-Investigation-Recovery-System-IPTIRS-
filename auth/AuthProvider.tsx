@@ -14,7 +14,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export const AuthProvider: React.FC<React.PropsWithChildren<{
   authority: string;
   clientId: string;
-}> = ({ authority, clientId, children }) => {
+}>> = ({ authority, clientId, children }) => {
   const manager = useMemo(() => new UserManager({
     authority,
     client_id: clientId,
