@@ -464,7 +464,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
           rejected: []
         };
         if (!allowed[currentStatus]?.includes(body.data.status)) {
-          throw new RequestContextError(409, 'This ownership review transition is not allowed. Refresh the case and review the current status.');
+          throw new CaseWorkflowConflictError('This ownership review transition is not allowed. Refresh the case and review the current status.');
         }
 
         const result = await client.query(
