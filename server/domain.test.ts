@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createAuditDigest } from './audit.js';
 import { extractBearerToken } from './auth.js';
 import { createCaseSchema, updateDeviceOwnershipSchema } from './schemas.js';
+import { isEvidenceIntegrityValid } from './evidence.js';
 
 test('case creation trims a valid summary and defaults priority', () => {
   const parsed = createCaseSchema.parse({
@@ -78,4 +79,12 @@ test('device ownership review requires an allowed status and reason', () => {
   assert.equal(updateDeviceOwnershipSchema.safeParse({ status: 'verified', reason: 'ok' }).success, false);
   assert.equal(updateDeviceOwnershipSchema.safeParse({ status: 'tracking', reason: 'Unsupported status must fail validation' }).success, false);
   assert.equal(updateDeviceOwnershipSchema.safeParse({ status: 'verified', reason: 'Valid review reason', extra: true }).success, false);
+});
+
+
+test('evidence integrity requires both the SHA-256 digest and byte length to match', () => {
+  assert.equal(isEvidenceIntegrityValid('a'.repeat(64), 128, 'a'.repeat(64), 128), true);
+  assert.equal(isEvidenceIntegrityValid('a'.repeat(64), 128, 'b'.repeat(64), 128), false);
+  assert.equal(isEvidenceIntegrityValid('a'.repeat(64), 128, 'a'.repeat(64), 127), false);
+  assert.equal(isEvidenceIntegrityValid('a'.repeat(64), 128, 'b'.repeat(64), 127), false);
 });
