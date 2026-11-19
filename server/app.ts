@@ -17,6 +17,7 @@ import {
   listCasesQuerySchema,
   organizationIdSchema,
   updateCaseStatusSchema,
+  updateDeviceOwnershipSchema,
   updateMembershipSchema
 } from './schemas.js';
 import type { AppConfig } from './config.js';
@@ -434,6 +435,57 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
       return record;
     });
     if (!updated) return reply.code(404).send(errorResponse('not_found', 'The case was not found.'));
+    return { data: updated };
+  });
+
+  app.patch('/v1/cases/:caseId/devices/:deviceId/ownership', { preHandler: authenticate }, async (request, reply) => {
+    const params = z.object({ caseId: z.string().uuid(), deviceId: z.string().uuid() }).strict().safeParse(request.params);
+    const body = updateDeviceOwnershipSchema.safeParse(request.body);
+    if (!params.success) throw params.error;
+    if (!body.success) throw body.error;
+
+    const updated = await withTenantContext(
+      dependencies.pool, request.identity!.subject, request.organizationId!,
+      async (client, context) => {
+        assertStaff(context);
+        const current = await client.query(
+          'SELECT id, ownership_status FROM device_records WHERE id = $1 AND case_id = $2 LIMIT 1',
+          [params.data.deviceId, params.data.caseId]
+        );
+        if (!current.rows[0]) return null;
+
+        const currentStatus = current.rows[0].ownership_status as string;
+        const allowed: Record<string, string[]> = {
+          unverified: ['evidence_submitted', 'verified', 'disputed', 'rejected'],
+          claimed: ['evidence_submitted', 'verified', 'disputed', 'rejected'],
+          evidence_submitted: ['verified', 'disputed', 'rejected'],
+          disputed: ['evidence_submitted', 'verified', 'rejected'],
+          verified: ['disputed', 'rejected'],
+          rejected: []
+        };
+        if (!allowed[currentStatus]?.includes(body.data.status)) {
+          throw new RequestContextError(409, 'This ownership review transition is not allowed. Refresh the case and review the current status.');
+        }
+
+        const result = await client.query(
+          'UPDATE device_records SET ownership_status = $1 WHERE id = $2 AND case_id = $3 RETURNING id, device_type, manufacturer, model, ownership_status, created_at',
+          [body.data.status, params.data.deviceId, params.data.caseId]
+        );
+        await writeCaseEvent(
+          client, request.organizationId!, context.userId, params.data.caseId,
+          'device_ownership_reviewed', body.data.reason,
+          { deviceId: params.data.deviceId, previousStatus: currentStatus, newStatus: body.data.status }
+        );
+        await writeAudit(
+          client, request.organizationId!, context.userId, request.id,
+          'device.ownership_reviewed', params.data.deviceId,
+          { caseId: params.data.caseId, previousStatus: currentStatus, newStatus: body.data.status }
+        );
+        return result.rows[0];
+      }
+    );
+
+    if (!updated) return reply.code(404).send(errorResponse('not_found', 'The device record was not found for this case.'));
     return { data: updated };
   });
 
