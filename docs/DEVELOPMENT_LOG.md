@@ -284,3 +284,13 @@ The earlier failure on SHA `38a2f102572755765b7c89326613a0c3faae1a0a` remains in
 - No merge into `main` was performed.
 - A passing CI pipeline validates the configured automated checks; it does not close the operational, legal, privacy, identity, production hosting, storage, independent security, or institutional pilot gates listed above.
 
+
+
+### Evidence integrity incident recording (in progress)
+
+- Added migration `0007_evidence_integrity_events.sql`: creates tenant-scoped, append-only evidence integrity event storage; adds a unique first-detection constraint per evidence item; extends evidence access actions with `integrity_failure`; and grants the restricted application role only SELECT/INSERT on the new event table.
+- The immutable `evidence_items` row is deliberately not rewritten when a mismatch is detected. A separate incident record preserves the original evidence metadata and avoids weakening the existing append-only evidence trigger.
+- The download path checks for a prior integrity incident before retrieving an object. On a SHA-256 or byte-length mismatch it writes, in the same tenant transaction, an integrity event, an evidence access event, a case timeline event, and a digest-bearing audit event; it returns HTTP 409 and never returns the mismatched bytes.
+- Repeat downloads remain blocked after detection. A reviewer-clearing workflow is intentionally not implied by this change and must be separately authorized, tested, and documented before any evidence can be released again.
+- Added a pure integrity comparison helper for deterministic unit testing.
+- Validation status: implementation committed to a dedicated feature branch; CI and database integration validation are pending. No production evidence was modified.
