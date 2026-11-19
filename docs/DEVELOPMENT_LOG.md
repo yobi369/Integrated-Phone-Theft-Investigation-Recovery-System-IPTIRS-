@@ -65,8 +65,9 @@ Implementation commits:
 
 **Validation correction:** the first CI run on `38a2f102572755765b7c89326613a0c3faae1a0a` did not pass. TypeScript found that `RequestContextError` only accepted status codes 401 and 403, while the existing ownership-transition endpoint also uses HTTP 409. CodeQL and the Vercel preview feedback check passed, but the TypeScript/build/database-security job failed at `server/app.ts(467,41)`. This was a real type-contract defect, not a flaky test.
 
-- `2229eed1581e1c218d1099be4e0e6c46d37beea3` — widened the error's status-code property to `number`, matching Fastify's numeric HTTP status contract and allowing 409 conflict responses.
-- The corrected commit must complete a fresh CI run before this milestone is marked green. Do not infer success from the earlier run.
+- `2229eed1581e1c218d1099be4e0e6c46d37beea3` — widened the request-context error status type as an initial type correction.
+- `6ef20a3bc1ce24c9d2bec57ed4d70ba389eb3805` — added a dedicated `CaseWorkflowConflictError` path so invalid case/ownership transitions are mapped to HTTP 409 without misclassifying them as authentication or authorization errors. The general request-context error remains responsible for authentication/authorization status responses.
+- The latest commit's CodeQL analysis was still running at the time of this log update; the full CI result must be checked before this milestone is marked green. Do not infer success from the earlier run.
 
 ## Evidence workflow: current capabilities and limits
 
@@ -98,7 +99,8 @@ A SHA-256 match establishes that the downloaded bytes match the stored digest; b
 | `38a2f102572755765b7c89326613a0c3faae1a0a` | TypeScript/build/database security | Failed | Type error: HTTP 409 excluded from RequestContextError |
 | `38a2f102572755765b7c89326613a0c3faae1a0a` | CodeQL | Passed | Run completed successfully |
 | `38a2f102572755765b7c89326613a0c3faae1a0a` | Vercel preview feedback | Passed | No unresolved preview feedback |
-| `2229eed1581e1c218d1099be4e0e6c46d37beea3` | Fresh CI and CodeQL | Pending verification | Re-check the new commit's checks before declaring this milestone passed |
+| `2229eed1581e1c218d1099be4e0e6c46d37beea3` | Type correction | Superseded by explicit conflict mapping | Intermediate correction; see next row |
+| `6ef20a3bc1ce24c9d2bec57ed4d70ba389eb3805` | CodeQL / CI | Pending verification | Latest branch head at the time of this log update |
 
 ## Next engineering steps
 
