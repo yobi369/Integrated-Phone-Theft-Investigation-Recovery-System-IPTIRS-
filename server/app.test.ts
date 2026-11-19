@@ -49,3 +49,19 @@ test('evidence upload rejects unauthenticated callers before parsing or storage 
   assert.equal(response.json().error.code, 'unauthorized');
   await app.close();
 });
+
+test('evidence access history rejects unauthenticated callers before database access', async () => {
+  const app = await buildApp({
+    config: { nodeEnv: 'test', corsOrigins: ['http://localhost:3000'], rateLimitMax: 100 },
+    pool: fakePool,
+    verifyToken: async () => ({ subject: 'synthetic-subject' })
+  });
+
+  const response = await app.inject({
+    method: 'GET',
+    url: '/v1/evidence/30000000-0000-4000-8000-000000000003/access-history'
+  });
+  assert.equal(response.statusCode, 401);
+  assert.equal(response.json().error.code, 'unauthorized');
+  await app.close();
+});
