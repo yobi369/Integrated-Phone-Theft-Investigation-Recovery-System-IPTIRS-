@@ -92,6 +92,7 @@ See:
 - [Architecture and trust boundaries](docs/ARCHITECTURE.md)
 - [Security and privacy baseline](docs/SECURITY_AND_PRIVACY.md)
 - [Delivery roadmap and acceptance gates](docs/ROADMAP.md)
+- [Development log, engineering decisions, and validation ledger](docs/DEVELOPMENT_LOG.md)
 
 ## Institutional engagement
 
