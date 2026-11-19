@@ -65,3 +65,23 @@ test('evidence access history rejects unauthenticated callers before database ac
   assert.equal(response.json().error.code, 'unauthorized');
   await app.close();
 });
+
+test('evidence access history rejects malformed evidence identifiers before database access', async () => {
+  const app = await buildApp({
+    config: { nodeEnv: 'test', corsOrigins: ['http://localhost:3000'], rateLimitMax: 100 },
+    pool: fakePool,
+    verifyToken: async () => ({ subject: 'synthetic-subject' })
+  });
+
+  const response = await app.inject({
+    method: 'GET',
+    url: '/v1/evidence/not-a-uuid/access-history',
+    headers: {
+      authorization: 'Bearer synthetic-token',
+      'x-organization-id': '30000000-0000-4000-8000-000000000003'
+    }
+  });
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.json().error.code, 'invalid_request');
+  await app.close();
+});
