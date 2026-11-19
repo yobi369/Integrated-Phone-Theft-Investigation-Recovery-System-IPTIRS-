@@ -233,3 +233,48 @@ BEGIN
   END IF;
 END;
 $$;
+
+
+-- Evidence integrity incident records are tenant-scoped and append-only.
+DO $
+DECLARE visible_incidents integer;
+BEGIN
+  PERFORM set_config('app.current_user_id', '20000000-0000-4000-8000-000000000001', false);
+  PERFORM set_config('app.current_role', 'investigator', false);
+  INSERT INTO evidence_integrity_events (
+    organization_id, evidence_id, actor_user_id, event_type, details
+  ) VALUES (
+    '10000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '20000000-0000-4000-8000-000000000001',
+    'detected',
+    '{"synthetic":true,"reason":"integration-test"}'::jsonb
+  );
+
+  SELECT count(*) INTO visible_incidents FROM evidence_integrity_events;
+  IF visible_incidents <> 1 THEN
+    RAISE EXCEPTION 'Investigator should see exactly one own-tenant evidence integrity event, got %', visible_incidents;
+  END IF;
+
+  IF has_table_privilege(current_user, 'evidence_integrity_events', 'UPDATE')
+     OR has_table_privilege(current_user, 'evidence_integrity_events', 'DELETE') THEN
+    RAISE EXCEPTION 'Application role must not mutate or delete evidence integrity events';
+  END IF;
+
+  BEGIN
+    UPDATE evidence_integrity_events SET details = '{"tampered":true}'::jsonb
+     WHERE evidence_id = '40000000-0000-4000-8000-000000000001';
+    RAISE EXCEPTION 'Evidence integrity event unexpectedly mutable';
+  EXCEPTION WHEN insufficient_privilege OR SQLSTATE '55000' THEN
+    NULL;
+  END;
+
+  BEGIN
+    DELETE FROM evidence_integrity_events
+     WHERE evidence_id = '40000000-0000-4000-8000-000000000001';
+    RAISE EXCEPTION 'Evidence integrity event unexpectedly deletable';
+  EXCEPTION WHEN insufficient_privilege OR SQLSTATE '55000' THEN
+    NULL;
+  END;
+END;
+$$;

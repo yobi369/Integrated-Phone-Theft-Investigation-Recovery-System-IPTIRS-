@@ -6,11 +6,16 @@ import { fileTypeFromBuffer } from 'file-type';
 import type { Pool } from 'pg';
 import type { TokenVerifier } from './auth.js';
 import { extractBearerToken } from './auth.js';
+import { createAuditDigest } from './audit.js';
 import { withTenantContext, RequestContextError } from './db.js';
 
 const MAX_EVIDENCE_BYTES = 50 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
 const error = (code: string, message: string) => ({ error: { code, message } });
+
+export function isEvidenceIntegrityValid(expectedSha256: string, expectedBytes: number, actualSha256: string, actualBytes: number): boolean {
+  return expectedSha256 === actualSha256 && expectedBytes === actualBytes;
+}
 
 interface EvidenceDependencies {
   pool: Pool;
@@ -203,20 +208,57 @@ export async function registerEvidenceRoutes(app: FastifyInstance, dependencies:
       );
       const record = result.rows[0];
       if (!record || record.verification_status !== 'available') return null;
+      const incident = await client.query(
+        "SELECT id FROM evidence_integrity_events WHERE organization_id = $1 AND evidence_id = $2 AND event_type = 'detected' LIMIT 1",
+        [orgHeader, evidenceId]
+      );
+      if (incident.rows[0]) return { integrityFailure: true as const };
+
       const object = await config.s3.send(new GetObjectCommand({ Bucket: config.bucket, Key: record.object_key }));
       if (!object.Body) throw new Error('Evidence object body is missing.');
       const content = Buffer.from(await object.Body.transformToByteArray());
       const actualHash = createHash('sha256').update(content).digest('hex');
-      if (actualHash !== record.sha256 || content.length !== Number(record.byte_size)) {
-        throw new Error('Evidence integrity verification failed.');
+      const expectedBytes = Number(record.byte_size);
+      if (!isEvidenceIntegrityValid(record.sha256, expectedBytes, actualHash, content.length)) {
+        const occurredAt = new Date().toISOString();
+        const metadata = { evidenceId, caseId: record.case_id, expectedSha256: record.sha256,
+          actualSha256: actualHash, expectedByteSize: expectedBytes, actualByteSize: content.length };
+        await client.query(
+          `INSERT INTO evidence_integrity_events (organization_id, evidence_id, actor_user_id, event_type, details)
+           VALUES ($1, $2, $3, 'detected', $4::jsonb)
+           ON CONFLICT (organization_id, evidence_id) WHERE event_type = 'detected' DO NOTHING`,
+          [orgHeader, evidenceId, context.userId, JSON.stringify(metadata)]
+        );
+        await client.query(
+          'INSERT INTO evidence_access_events (organization_id,evidence_id,actor_user_id,action,purpose) VALUES ($1,$2,$3,$4,$5)',
+          [orgHeader, evidenceId, context.userId, 'integrity_failure', accessPurpose.trim()]
+        );
+        await client.query(
+          'INSERT INTO case_events (organization_id,case_id,actor_user_id,event_type,description,metadata) VALUES ($1,$2,$3,$4,$5,$6::jsonb)',
+          [orgHeader, record.case_id, context.userId, 'evidence_integrity_failure',
+            'Evidence download was blocked after stored content failed integrity verification.',
+            JSON.stringify({ evidenceId, expectedByteSize: expectedBytes, actualByteSize: content.length })]
+        );
+        const eventHash = createAuditDigest({ organizationId: orgHeader, actorUserId: context.userId,
+          requestId: request.id, action: 'evidence.integrity_failure', targetType: 'evidence',
+          targetId: evidenceId, metadata, occurredAt });
+        await client.query(
+          `INSERT INTO audit_events
+            (organization_id, actor_user_id, request_id, action, target_type, target_id, metadata, event_hash, occurred_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9)`,
+          [orgHeader, context.userId, request.id, 'evidence.integrity_failure', 'evidence',
+            evidenceId, JSON.stringify(metadata), eventHash, occurredAt]
+        );
+        return { integrityFailure: true as const };
       }
       await client.query(
         'INSERT INTO evidence_access_events (organization_id,evidence_id,actor_user_id,action,purpose) VALUES ($1,$2,$3,$4,$5)',
         [orgHeader, evidenceId, context.userId, 'download', accessPurpose.trim()]
       );
-      return { content, mediaType: record.media_type, evidenceId };
+      return { integrityFailure: false as const, content, mediaType: record.media_type, evidenceId };
     });
     if (!outcome) return reply.code(404).send(error('not_found', 'Verified evidence was not found.'));
+    if (outcome.integrityFailure) return reply.code(409).send(error('evidence_integrity_failure', 'Evidence failed integrity verification and has been blocked pending authorized review.'));
     return reply.type(outcome.mediaType).header('Content-Disposition', `attachment; filename="evidence-${outcome.evidenceId}"`)
       .header('Cache-Control', 'private, no-store').send(outcome.content);
   });
