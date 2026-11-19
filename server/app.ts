@@ -334,8 +334,18 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
         );
         const newCase = result.rows[0];
 
+        if (body.data.device) {
+          await client.query(
+            `INSERT INTO device_records (organization_id, case_id, device_type, manufacturer, model)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [organizationId, newCase.id, body.data.device.deviceType,
+              body.data.device.manufacturer ?? null, body.data.device.model ?? null]
+          );
+        }
+
         await writeCaseEvent(client, organizationId, context.userId, newCase.id, 'case_created',
-          'Case created by an authenticated organization member', { caseReference, category: body.data.category });
+          'Case created by an authenticated organization member',
+          { caseReference, category: body.data.category, deviceDetailsProvided: Boolean(body.data.device) });
         await writeAudit(client, organizationId, context.userId, request.id, 'case.created', newCase.id,
           { caseReference, category: body.data.category, priority: body.data.priority });
         return newCase;
@@ -356,7 +366,12 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
       const caseRecord = caseResult.rows[0];
       if (!caseRecord) return reply.code(404).send(errorResponse('not_found', 'The case was not found.'));
 
-      const [assignments, timeline, authorizations] = await Promise.all([
+      const [assignments, timeline, authorizations, devices] = await Promise.all([
+        client.query(
+          `SELECT id, device_type, manufacturer, model, ownership_status, created_at
+             FROM device_records WHERE case_id = $1 ORDER BY created_at ASC`,
+          [params.data.caseId]
+        ),
         client.query(
           `SELECT id, assigned_to_user_id, assigned_by_user_id, assignment_reason, status, assigned_at, released_at
              FROM case_assignments WHERE case_id = $1 ORDER BY assigned_at DESC`,
@@ -378,6 +393,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
       return reply.send({
         data: {
           ...caseRecord,
+          devices: devices.rows,
           assignments: assignments.rows,
           timeline: timeline.rows,
           authorizations: authorizations.rows
