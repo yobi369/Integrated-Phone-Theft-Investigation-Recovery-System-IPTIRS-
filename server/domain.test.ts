@@ -14,6 +14,26 @@ test('case creation trims a valid summary and defaults priority', () => {
   assert.equal(parsed.priority, 'normal');
 });
 
+test('case creation accepts bounded non-sensitive device descriptors', () => {
+  const parsed = createCaseSchema.parse({
+    category: 'phone_theft',
+    summary: 'Synthetic device incident for validation',
+    device: { deviceType: 'phone', manufacturer: 'Example Devices', model: 'Model X' }
+  });
+  assert.equal(parsed.device?.deviceType, 'phone');
+  assert.equal(parsed.device?.manufacturer, 'Example Devices');
+  assert.equal(createCaseSchema.safeParse({
+    category: 'phone_theft',
+    summary: 'Synthetic device incident for validation',
+    device: { deviceType: 'phone', imei: '123456789012345' }
+  }).success, false);
+  assert.equal(createCaseSchema.safeParse({
+    category: 'phone_theft',
+    summary: 'Synthetic device incident for validation',
+    device: { deviceType: 'unknown' }
+  }).success, false);
+});
+
 test('case creation rejects short summaries and unknown fields', () => {
   assert.equal(createCaseSchema.safeParse({ category: 'phone_theft', summary: 'short' }).success, false);
   assert.equal(createCaseSchema.safeParse({
