@@ -50,6 +50,11 @@ export const createAuthorizationSchema = z.object({
   validUntil: z.string().datetime({ offset: true })
 }).strict();
 
+export const updateDeviceOwnershipSchema = z.object({
+  status: z.enum(['evidence_submitted', 'verified', 'disputed', 'rejected']),
+  reason: z.string().trim().min(10).max(1000)
+}).strict();
+
 export const decideAuthorizationSchema = z.object({
   decision: z.enum(['approved', 'rejected']),
   reason: z.string().trim().min(10).max(1000)
