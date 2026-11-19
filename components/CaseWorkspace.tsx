@@ -10,6 +10,7 @@ interface CaseRow {
 interface Investigator { userId: string; displayName: string; role: string; }
 interface EvidenceRecord { id: string; sha256: string; media_type: string; byte_size: number; evidence_kind: string; verification_status: string; created_at: string; }
 interface CaseDetail extends CaseRow {
+  devices: Array<{ id: string; device_type: string; manufacturer?: string | null; model?: string | null; ownership_status: string; created_at: string }>;
   assignments: Array<{ id: string; assigned_to_user_id: string; assignment_reason: string; status: string; assigned_at: string; released_at?: string }>;
   timeline: Array<{ id: string; event_type: string; description: string; occurred_at: string; actor_user_id: string }>;
   authorizations: Array<{ id: string; requested_action: string; purpose: string; status: string; valid_until: string; requested_by_user_id: string; decision_reason?: string; decided_by_user_id?: string; decided_at?: string }>;
@@ -41,6 +42,9 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
   const [category, setCategory] = useState('phone_theft');
   const [priority, setPriority] = useState('normal');
   const [summary, setSummary] = useState('');
+  const [deviceType, setDeviceType] = useState('phone');
+  const [manufacturer, setManufacturer] = useState('');
+  const [deviceModel, setDeviceModel] = useState('');
   const [nextStatus, setNextStatus] = useState<CaseStatus>('under_review');
   const [statusReason, setStatusReason] = useState('');
   const [assignee, setAssignee] = useState('');
@@ -102,9 +106,12 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
     event.preventDefault();
     await run(async () => {
       const result = await request<{ data: CaseRow }>('/v1/cases', {
-        method: 'POST', body: JSON.stringify({ category, priority, summary })
+        method: 'POST', body: JSON.stringify({
+          category, priority, summary,
+          device: { deviceType, manufacturer: manufacturer.trim() || undefined, model: deviceModel.trim() || undefined }
+        })
       });
-      setShowCreate(false); setSummary(''); setSelectedId(result.data.id);
+      setShowCreate(false); setSummary(''); setManufacturer(''); setDeviceModel(''); setSelectedId(result.data.id);
     }, 'Case created successfully.');
   };
 
@@ -124,6 +131,16 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
       method: 'POST', body: JSON.stringify({ assigneeUserId: assignee, reason: assignmentReason })
     }), 'Investigator assignment recorded.');
     setAssignee(''); setAssignmentReason('');
+  };
+
+  const reviewDeviceOwnership = (deviceId: string, status: string, reason: string) => {
+    if (!selectedId || reason.trim().length < 10) {
+      setError('Enter a review reason of at least 10 characters.');
+      return;
+    }
+    void run(() => request(`/v1/cases/${selectedId}/devices/${deviceId}/ownership`, {
+      method: 'PATCH', body: JSON.stringify({ status, reason: reason.trim() })
+    }), 'Device ownership review recorded.');
   };
 
   const uploadEvidence = async (event: React.FormEvent) => {
@@ -224,6 +241,12 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
           <label className="text-sm text-brand-text-secondary">Category<select value={category} onChange={e => setCategory(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-white"><option value="phone_theft">Phone theft</option><option value="device_loss">Device loss</option><option value="institutional_asset_loss">Institutional asset loss</option></select></label>
           <label className="text-sm text-brand-text-secondary">Priority<select value={priority} onChange={e => setPriority(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-white"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
         </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <label className="text-sm text-brand-text-secondary">Device type<select value={deviceType} onChange={e => setDeviceType(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-white"><option value="phone">Phone</option><option value="tablet">Tablet</option><option value="laptop">Laptop</option><option value="other">Other</option></select></label>
+          <label className="text-sm text-brand-text-secondary">Manufacturer (optional)<input maxLength={100} value={manufacturer} onChange={e => setManufacturer(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-white" placeholder="e.g. Samsung" /></label>
+          <label className="text-sm text-brand-text-secondary">Model (optional)<input maxLength={120} value={deviceModel} onChange={e => setDeviceModel(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-white" placeholder="e.g. Galaxy A54" /></label>
+        </div>
+        <p className="text-xs text-brand-text-secondary">Do not enter IMEI, serial numbers, passwords, precise location or other sensitive identifiers here.</p>
         <label className="block text-sm text-brand-text-secondary">Case summary<textarea required minLength={10} maxLength={4000} rows={3} value={summary} onChange={e => setSummary(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-3 text-white" placeholder="Describe the synthetic incident and relevant context..." /></label>
         <button disabled={busy} className="rounded bg-brand-accent px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{busy ? 'Saving…' : 'Create case'}</button>
       </form>}
@@ -239,6 +262,7 @@ const CaseWorkspace: React.FC<Props> = ({ apiBaseUrl, token, organizationId, rol
           {!detail ? <div className="flex min-h-64 items-center justify-center text-center text-sm text-brand-text-secondary">Select a case to inspect its details, assignments and timeline.</div> : <>
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-brand-light pb-4"><div><p className="font-mono text-sm text-brand-accent">{detail.case_reference}</p><h2 className="mt-1 text-xl font-bold text-white">{label(detail.category)}</h2><p className="mt-2 text-sm text-brand-text-secondary">{detail.summary}</p></div><span className="rounded border border-brand-light px-3 py-1 text-xs uppercase text-white">{label(detail.status)}</span></div>
             <div className="grid gap-3 py-4 text-sm sm:grid-cols-3"><div><p className="text-xs text-brand-text-secondary">Priority</p><p className="mt-1 text-white">{label(detail.priority)}</p></div><div><p className="text-xs text-brand-text-secondary">Created</p><p className="mt-1 text-white">{date(detail.created_at)}</p></div><div><p className="text-xs text-brand-text-secondary">Updated</p><p className="mt-1 text-white">{date(detail.updated_at)}</p></div></div>
+            {detail.devices.length > 0 && <div className="mb-4 rounded border border-brand-light p-4"><h3 className="text-sm font-bold text-white">Reported device and ownership review</h3><div className="mt-3 space-y-3">{detail.devices.map(device => <div key={device.id} className="rounded border border-brand-light/70 p-3"><p className="text-sm font-semibold text-white">{label(device.device_type)}{device.manufacturer ? ` · ${device.manufacturer}` : ''}{device.model ? ` · ${device.model}` : ''}</p><p className="mt-1 text-xs text-brand-text-secondary">Ownership status: <span className="uppercase text-brand-accent">{label(device.ownership_status)}</span></p>{staff && device.ownership_status !== 'rejected' && <form onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); reviewDeviceOwnership(device.id, String(data.get('status')), String(data.get('reason'))); }} className="mt-3 grid gap-2 md:grid-cols-[1fr_2fr_auto]"><select name="status" defaultValue={device.ownership_status === 'verified' ? 'disputed' : 'evidence_submitted'} className="rounded border border-brand-light bg-brand-dark p-2 text-xs text-white"><option value="evidence_submitted">Evidence submitted</option><option value="verified">Verified</option><option value="disputed">Disputed</option><option value="rejected">Rejected</option></select><input name="reason" required minLength={10} maxLength={1000} className="rounded border border-brand-light bg-brand-dark p-2 text-xs text-white" placeholder="Document the review basis (minimum 10 characters)" /><button disabled={busy} className="rounded border border-brand-accent px-3 py-2 text-xs font-bold text-brand-accent disabled:opacity-50">Record review</button></form>}</div>)}</div><p className="mt-3 text-[11px] text-brand-text-secondary">A status records an organization’s review decision; it does not independently establish legal ownership or authenticate a device.</p></div>}
             {staff && transitions[detail.status].length > 0 && <form onSubmit={updateStatus} className="grid gap-3 rounded border border-brand-light bg-brand-dark/50 p-4 md:grid-cols-[1fr_2fr_auto] md:items-end"><label className="text-xs text-brand-text-secondary">Next status<select value={nextStatus} onChange={e => setNextStatus(e.target.value as CaseStatus)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white">{transitions[detail.status].map(status => <option key={status} value={status}>{label(status)}</option>)}</select></label><label className="text-xs text-brand-text-secondary">Reason<input required minLength={10} maxLength={1000} value={statusReason} onChange={e => setStatusReason(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" placeholder="Explain the status transition..." /></label><button disabled={busy || !statusReason.trim()} className="rounded bg-brand-accent px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Update status</button></form>}
             {staff && <form onSubmit={assignCase} className="mt-4 grid gap-3 rounded border border-brand-light p-4 md:grid-cols-2"><div className="md:col-span-2"><h3 className="text-sm font-bold text-white">Assign investigator</h3><p className="mt-1 text-xs text-brand-text-secondary">Enter the UUID of an active investigator or organization administrator in this organization.</p></div><label className="text-xs text-brand-text-secondary">Investigator<select required value={assignee} onChange={e => setAssignee(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white"><option value="">Choose an active investigator</option>{investigators.map(person=><option key={person.userId} value={person.userId}>{person.displayName} · {person.role.replaceAll('_',' ')}</option>)}</select></label><label className="text-xs text-brand-text-secondary">Reason<input required minLength={5} maxLength={500} value={assignmentReason} onChange={e => setAssignmentReason(e.target.value)} className="mt-1 block w-full rounded border border-brand-light bg-brand-dark p-2 text-sm text-white" placeholder="Assignment rationale" /></label><div className="md:col-span-2"><button disabled={busy} className="rounded border border-brand-accent px-3 py-2 text-xs font-bold text-brand-accent disabled:opacity-50">Record assignment</button></div></form>}
             <div className="mt-5"><h3 className="mb-3 font-bold text-white">Assignment history</h3>{detail.assignments.length === 0 ? <p className="text-xs text-brand-text-secondary">No assignments recorded.</p> : <ul className="space-y-2">{detail.assignments.map(item => <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-brand-light p-3 text-xs"><div><p className="font-mono text-brand-accent">{item.assigned_to_user_id}</p><p className="mt-1 text-brand-text-secondary">{item.assignment_reason} · {label(item.status)}</p></div>{staff && item.status === 'active' && <button onClick={() => releaseAssignment(item.id)} disabled={busy} className="text-red-300 hover:text-red-200">Release</button>}</li>)}</ul>}</div>

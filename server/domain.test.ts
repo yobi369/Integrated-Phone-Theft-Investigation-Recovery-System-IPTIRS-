@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAuditDigest } from './audit.js';
 import { extractBearerToken } from './auth.js';
-import { createCaseSchema } from './schemas.js';
+import { createCaseSchema, updateDeviceOwnershipSchema } from './schemas.js';
 
 test('case creation trims a valid summary and defaults priority', () => {
   const parsed = createCaseSchema.parse({
@@ -12,6 +12,26 @@ test('case creation trims a valid summary and defaults priority', () => {
 
   assert.equal(parsed.summary, 'Synthetic device theft report');
   assert.equal(parsed.priority, 'normal');
+});
+
+test('case creation accepts bounded non-sensitive device descriptors', () => {
+  const parsed = createCaseSchema.parse({
+    category: 'phone_theft',
+    summary: 'Synthetic device incident for validation',
+    device: { deviceType: 'phone', manufacturer: 'Example Devices', model: 'Model X' }
+  });
+  assert.equal(parsed.device?.deviceType, 'phone');
+  assert.equal(parsed.device?.manufacturer, 'Example Devices');
+  assert.equal(createCaseSchema.safeParse({
+    category: 'phone_theft',
+    summary: 'Synthetic device incident for validation',
+    device: { deviceType: 'phone', imei: '123456789012345' }
+  }).success, false);
+  assert.equal(createCaseSchema.safeParse({
+    category: 'phone_theft',
+    summary: 'Synthetic device incident for validation',
+    device: { deviceType: 'unknown' }
+  }).success, false);
 });
 
 test('case creation rejects short summaries and unknown fields', () => {
@@ -51,4 +71,11 @@ test('bearer token extraction accepts only a single bearer credential', () => {
   assert.equal(extractBearerToken('Basic abc'), null);
   assert.equal(extractBearerToken('Bearer token with-spaces'), null);
   assert.equal(extractBearerToken(undefined), null);
+});
+
+test('device ownership review requires an allowed status and reason', () => {
+  assert.equal(updateDeviceOwnershipSchema.safeParse({ status: 'verified', reason: 'Purchase receipt checked by reviewer' }).success, true);
+  assert.equal(updateDeviceOwnershipSchema.safeParse({ status: 'verified', reason: 'ok' }).success, false);
+  assert.equal(updateDeviceOwnershipSchema.safeParse({ status: 'tracking', reason: 'Unsupported status must fail validation' }).success, false);
+  assert.equal(updateDeviceOwnershipSchema.safeParse({ status: 'verified', reason: 'Valid review reason', extra: true }).success, false);
 });

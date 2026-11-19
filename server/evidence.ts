@@ -220,4 +220,33 @@ export async function registerEvidenceRoutes(app: FastifyInstance, dependencies:
     return reply.type(outcome.mediaType).header('Content-Disposition', `attachment; filename="evidence-${outcome.evidenceId}"`)
       .header('Cache-Control', 'private, no-store').send(outcome.content);
   });
+  app.get('/v1/evidence/:evidenceId/access-history', async (request, reply) => {
+    const token = requireIdentity(request);
+    let identity;
+    try { identity = await dependencies.verifyToken(token); }
+    catch { return reply.code(401).send(error('unauthorized', 'The bearer token could not be verified.')); }
+    const orgHeader = request.headers['x-organization-id'];
+    if (typeof orgHeader !== 'string' || !/^[0-9a-f-]{36}$/i.test(orgHeader)) {
+      return reply.code(400).send(error('invalid_organization', 'A valid X-Organization-Id header is required.'));
+    }
+    const evidenceId = (request.params as { evidenceId?: string }).evidenceId;
+    if (!evidenceId || !/^[0-9a-f-]{36}$/i.test(evidenceId)) {
+      return reply.code(400).send(error('invalid_request', 'A valid evidence identifier is required.'));
+    }
+    const history = await withTenantContext(dependencies.pool, identity.subject, orgHeader, async (client, context) => {
+      if (!['organization_admin', 'investigator', 'auditor'].includes(context.role)) {
+        throw new RequestContextError(403, 'An investigator, organization administrator, or auditor role is required.');
+      }
+      const result = await client.query(
+        `SELECT id, actor_user_id, action, purpose, occurred_at
+           FROM evidence_access_events
+          WHERE organization_id = $1 AND evidence_id = $2
+          ORDER BY occurred_at ASC, id ASC`,
+        [orgHeader, evidenceId]
+      );
+      return result.rows;
+    });
+    return { data: history };
+  });
+
 }

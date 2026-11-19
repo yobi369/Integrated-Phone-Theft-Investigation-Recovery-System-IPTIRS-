@@ -4,7 +4,7 @@
 
 IPTIRS is being developed as a secure workflow platform to help citizens, authorized investigators, telecommunications providers, and participating institutions coordinate stolen-device reports, case handling, evidence records, and recovery outcomes.
 
-> **Current status: research prototype / development foundation.** This repository is not an operational police system, a telecom network integration, an IMEI blacklist service, or a live device-location service. No government agency, mobile network operator, or other institution is represented as a partner or adopter.
+> **Current status: pre-pilot product development.** A public product landing page and authenticated institutional workspace are under active development; production hosting, institutional identity configuration, and operational approval are not yet in place. This repository is not an operational police system, a telecom network integration, an IMEI blacklist service, or a live device-location service. No government agency, mobile network operator, or other institution is represented as a partner or adopter.
 
 ## Product goals
 
@@ -31,9 +31,9 @@ IPTIRS is being developed as a secure workflow platform to help citizens, author
 - It does not replace police investigation, court processes, operator procedures, or statutory authority.
 - AI output, if introduced, is advisory only and must never fabricate coordinates, suspects, evidence, or investigative findings.
 
-## Current prototype
+## Product experience
 
-The React + TypeScript + Vite browser workspace now supports OIDC authorization-code + PKCE sign-in, organization membership verification, API-backed case listing/creation/detail, investigator assignment/release, status transitions, and an organization-admin membership screen. Tracking and forensic intelligence functions remain unavailable; no external operator or government service is connected.
+The public landing page introduces IPTIRS, its institutional use cases, workflow model, and security principles. The institutional workspace is gated behind organization-configured OIDC authorization-code + PKCE sign-in. Once authenticated and provisioned, members can use API-backed case listing/creation/detail, investigator assignment/release, status transitions, evidence workflows, authorization history, and organization membership administration according to their role. The landing-page workflow illustration is explanatory, not live operational data. Tracking and forensic intelligence functions remain unavailable; no external operator or government service is connected.
 
 ## Product development principles
 
@@ -92,6 +92,7 @@ See:
 - [Architecture and trust boundaries](docs/ARCHITECTURE.md)
 - [Security and privacy baseline](docs/SECURITY_AND_PRIVACY.md)
 - [Delivery roadmap and acceptance gates](docs/ROADMAP.md)
+- [Development log, engineering decisions, and validation ledger](docs/DEVELOPMENT_LOG.md)
 
 ## Institutional engagement
 
