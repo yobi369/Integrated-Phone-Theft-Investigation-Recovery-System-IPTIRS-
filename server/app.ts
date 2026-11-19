@@ -366,7 +366,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
       const caseRecord = caseResult.rows[0];
       if (!caseRecord) return reply.code(404).send(errorResponse('not_found', 'The case was not found.'));
 
-      const [assignments, timeline, authorizations, devices] = await Promise.all([
+      const [devices, assignments, timeline, authorizations] = await Promise.all([
         client.query(
           `SELECT id, device_type, manufacturer, model, ownership_status, created_at
              FROM device_records WHERE case_id = $1 ORDER BY created_at ASC`,
