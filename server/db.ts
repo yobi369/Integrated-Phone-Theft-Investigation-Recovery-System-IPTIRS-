@@ -2,7 +2,7 @@ import type { Pool, PoolClient } from 'pg';
 
 export class RequestContextError extends Error {
   constructor(
-    public readonly statusCode: 401 | 403,
+    public readonly statusCode: number,
     message: string
   ) {
     super(message);
