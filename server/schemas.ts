@@ -8,7 +8,12 @@ export const authorizationIdSchema = z.string().uuid();
 export const createCaseSchema = z.object({
   category: z.enum(['phone_theft', 'device_loss', 'institutional_asset_loss']),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
-  summary: z.string().trim().min(10).max(4000)
+  summary: z.string().trim().min(10).max(4000),
+  device: z.object({
+    deviceType: z.enum(['phone', 'tablet', 'laptop', 'other']),
+    manufacturer: z.string().trim().max(100).optional(),
+    model: z.string().trim().max(120).optional()
+  }).strict().optional()
 }).strict();
 
 export const listCasesQuerySchema = z.object({
