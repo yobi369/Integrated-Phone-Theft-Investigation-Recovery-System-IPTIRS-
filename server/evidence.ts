@@ -240,9 +240,9 @@ export async function registerEvidenceRoutes(app: FastifyInstance, dependencies:
       const result = await client.query(
         `SELECT id, actor_user_id, action, purpose, occurred_at
            FROM evidence_access_events
-          WHERE evidence_id = $1
+          WHERE organization_id = $1 AND evidence_id = $2
           ORDER BY occurred_at ASC, id ASC`,
-        [evidenceId]
+        [orgHeader, evidenceId]
       );
       return result.rows;
     });
