@@ -293,4 +293,5 @@ The earlier failure on SHA `38a2f102572755765b7c89326613a0c3faae1a0a` remains in
 - The download path checks for a prior integrity incident before retrieving an object. On a SHA-256 or byte-length mismatch it writes, in the same tenant transaction, an integrity event, an evidence access event, a case timeline event, and a digest-bearing audit event; it returns HTTP 409 and never returns the mismatched bytes.
 - Repeat downloads remain blocked after detection. A reviewer-clearing workflow is intentionally not implied by this change and must be separately authorized, tested, and documented before any evidence can be released again.
 - Added a pure integrity comparison helper for deterministic unit testing.
+- Added a synthetic evidence fixture and restricted-role SQL assertions for tenant visibility plus UPDATE/DELETE denial on integrity events.
 - Validation status: implementation committed to a dedicated feature branch; CI and database integration validation are pending. No production evidence was modified.
