@@ -25,3 +25,21 @@ INSERT INTO cases (id, organization_id, case_reference, created_by_user_id, cate
   ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'ALPHA-001', '20000000-0000-4000-8000-000000000001', 'phone_theft', 'Synthetic alpha test case'),
   ('30000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000002', 'BRAVO-001', '20000000-0000-4000-8000-000000000002', 'phone_theft', 'Synthetic bravo test case'),
   ('30000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', 'ALPHA-002', '20000000-0000-4000-8000-000000000003', 'phone_theft', 'Synthetic reporter-owned case');
+
+
+-- Synthetic evidence fixture for tenant isolation and append-only event checks.
+INSERT INTO evidence_items (
+  id, organization_id, case_id, uploaded_by_user_id, object_key, sha256,
+  media_type, byte_size, evidence_kind, verification_status
+) VALUES (
+  '40000000-0000-4000-8000-000000000001',
+  '10000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000001',
+  'synthetic-evidence-alpha-001',
+  repeat('a', 64),
+  'application/pdf',
+  128,
+  'other',
+  'available'
+);
