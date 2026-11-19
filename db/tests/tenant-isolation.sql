@@ -236,9 +236,11 @@ $$;
 
 
 -- Evidence integrity incident records are tenant-scoped and append-only.
-DO $$
+DO $
 DECLARE visible_incidents integer;
 BEGIN
+  PERFORM set_config('app.current_user_id', '20000000-0000-4000-8000-000000000001', false);
+  PERFORM set_config('app.current_role', 'investigator', false);
   INSERT INTO evidence_integrity_events (
     organization_id, evidence_id, actor_user_id, event_type, details
   ) VALUES (
