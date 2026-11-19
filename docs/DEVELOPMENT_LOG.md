@@ -235,3 +235,52 @@ For each new commit, add:
 
 Do not write secrets, access tokens, personal data, raw evidence, IMEI values, or private customer information into this log.
 
+## Follow-up close-out — 2026-11-19
+
+### Additional hardening and test steps after the detailed trace
+
+**Step H — Add malformed evidence-ID coverage**
+- Added an authenticated request test for `GET /v1/evidence/:evidenceId/access-history` using a malformed evidence identifier and valid organization header.
+- The expected behavior is HTTP 400 with `invalid_request`, before any tenant database query.
+- Commit: `3054270aefe7aca92cb861fc5f9477af7c84bba9`.
+
+**Step I — Ensure the new database migration is part of CI**
+- Reviewed `.github/workflows/ci.yml` and found that the PostgreSQL validation workflow applied migrations 0001 through 0005 but did not yet apply the newly introduced 0006 ownership-review migration.
+- Added `db/migrations/0006_device_ownership_review.sql` to the ordered migration application step, after migration 0005.
+- This ensures the CI database exercises the ownership-review policy, column-level grant and identity-protection trigger from a clean database.
+- Commit: `9d10eaeb7b8f25e302fc466c982484771d968a45`.
+
+**Step J — Add explicit tenant predicate to evidence history query**
+- Updated the access-history query to filter by both `organization_id` and `evidence_id`, using the organization established by the validated request header and tenant context.
+- RLS remains an additional database boundary; the explicit SQL predicate makes the intended tenant scope visible in the query itself.
+- Parameters are bound (`[orgHeader, evidenceId]`); no user-controlled SQL interpolation is used.
+- Commit: `540e6c241b49e2b75959cd3a36500e085410911f`.
+
+### Verified validation on the exact code SHA
+
+**Code SHA:** `540e6c241b49e2b75959cd3a36500e085410911f`
+
+- CI run `44533126734`: **completed / success**.
+  - Dependency audit summary: success.
+  - High-severity dependency audit threshold: success.
+  - TypeScript type-check: success.
+  - API type-check and compile: success.
+  - Unit tests: success.
+  - Frontend production build: success.
+  - Restricted application database role setup: success.
+  - Ordered migrations 0001–0006 applied: success.
+  - Tenant isolation and immutable-record checks: success.
+  - Authenticated API tests against PostgreSQL: success.
+- CodeQL run `44533126706`: **completed / success**.
+- Vercel Preview Comments check on this SHA: **completed / success**.
+
+The earlier failure on SHA `38a2f102572755765b7c89326613a0c3faae1a0a` remains in the historical record. It was corrected, then the complete CI pipeline was run successfully on the later code SHA above. The CI run that had been cancelled on an intermediate SHA is not counted as a pass.
+
+### Current branch status at this record
+
+- Latest code commit validated by full CI and CodeQL: `540e6c241b49e2b75959cd3a36500e085410911f`.
+- Documentation has been expanded in this file to preserve the full implementation trace.
+- PR #2 remains open and draft, based on `product/enterprise-foundation`.
+- No merge into `main` was performed.
+- A passing CI pipeline validates the configured automated checks; it does not close the operational, legal, privacy, identity, production hosting, storage, independent security, or institutional pilot gates listed above.
+
